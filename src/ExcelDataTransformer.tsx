@@ -1204,11 +1204,11 @@ const ExcelDataTransformer = () => {
                                 <span>Click cells to edit</span>
                             </div>
                             <div className="flex items-center space-x-2">
-                                <span className="text-gray-400">✎</span>
+                                <span className="text-white">✎</span>
                                 <span>Click headers to rename</span>
                             </div>
                             <div className="flex items-center space-x-2">
-                                <span className="text-gray-400">↕</span>
+                                <span className="text-white">↕</span>
                                 <span>Click sort icon to sort</span>
                             </div>
                         </div>
