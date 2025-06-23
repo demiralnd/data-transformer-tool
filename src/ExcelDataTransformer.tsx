@@ -1107,7 +1107,7 @@ const ExcelDataTransformer = () => {
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
                                              <img
-  src="/public/upload-bro.svg"
+  src="/upload-bro.svg"
   alt="Upload"
   className="w-64 h-auto mx-auto mb-4"
 />
