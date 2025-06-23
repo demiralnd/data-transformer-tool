@@ -1109,7 +1109,7 @@ const ExcelDataTransformer = () => {
                                              <img
   src="/upload-bro.svg"
   alt="Upload"
-  className="w-32 h-auto mx-auto mb-4"
+  className="w-48 h-auto mx-auto mb-4"
 />
                         <p className="text-sm text-gray-600">
                             {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
@@ -1470,7 +1470,7 @@ const ExcelDataTransformer = () => {
                      <img
   src="/writers-block-rafiki.svg"
   alt="No Data"
-  className="w-64 h-auto mx-auto mb-4"
+  className="w-72 h-auto mx-auto mb-4"
 />
 
                             <h3 className="text-lg font-medium text-gray-600">No Data to Display</h3>
