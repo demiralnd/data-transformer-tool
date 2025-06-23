@@ -1106,7 +1106,6 @@ const ExcelDataTransformer = () => {
                         multiple
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
-                        <div className="text-5xl mb-2 text-gray-400">⬆</div>
                         <p className="text-sm text-gray-600">
                             {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
                         </p>
