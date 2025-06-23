@@ -1483,12 +1483,14 @@ const ExcelDataTransformer = () => {
                             <p className="text-sm text-gray-400 mb-20">
                                 Multiple files will be combined into one dataset
                             </p>
+                            <p className="text-sm text-gray-400 mb-20">
+                                Built with ❤️ by OneVue Team
+                            </p>
+                            
+
                         </div>
                     </div>
-    
-         <p className="text-xs text-gray-400 mt-2">
-                            Built with ❤️ by OneVue Team
-                        </p>
+
     
                 )}
             </div>
