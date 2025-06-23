@@ -1117,9 +1117,6 @@ const ExcelDataTransformer = () => {
                         <p className="text-xs text-gray-400 mt-1">
                             Supports .xlsx, .xls, .csv (Multiple files allowed)
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                            Made with ❤️ by OneVue Team
-                        </p>
 
                     </label>
                 </div>
@@ -1186,6 +1183,9 @@ const ExcelDataTransformer = () => {
                             <li>• Configurable column mapping</li>
                         </ul>
                     </div>
+                                            <p className="text-xs text-gray-400 mt-1">
+                            Built with ❤️ by OneVue Team
+                        </p>
                 </div>
             </div>
 
