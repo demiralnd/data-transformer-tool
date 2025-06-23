@@ -1094,7 +1094,7 @@ const ExcelDataTransformer = () => {
                     </a>
                 </div>
 
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors mb-6">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-red-400 transition-colors mb-6">
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -1106,6 +1106,11 @@ const ExcelDataTransformer = () => {
                         multiple
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
+                                             <img
+  src="/public/upload-bro.svg"
+  alt="Rafiki Illustration"
+  className="w-64 h-auto mx-auto mb-4"
+/>
                         <p className="text-sm text-gray-600">
                             {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
                         </p>
@@ -1464,7 +1469,7 @@ const ExcelDataTransformer = () => {
                         <div className="text-center">
                      <img
   src="/public/writers-block-rafiki.svg"
-  alt="Rafiki Illustration"
+  alt="No Data"
   className="w-64 h-auto mx-auto mb-4"
 />
 
