@@ -1200,7 +1200,7 @@ const ExcelDataTransformer = () => {
                     {transformedData.length > 0 && (
                         <div className="flex items-center space-x-4 text-sm text-white">
                             <div className="flex items-center space-x-2">
-                                <span>✎</span>
+                                <span className="text-white">✎</span>
                                 <span>Click cells to edit</span>
                             </div>
                             <div className="flex items-center space-x-2">
