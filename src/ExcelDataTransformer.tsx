@@ -1183,9 +1183,6 @@ const ExcelDataTransformer = () => {
                             <li>• Configurable column mapping</li>
                         </ul>
                     </div>
-                                            <p className="text-xs text-gray-400 mt-2">
-                            Built with ❤️ by OneVue Team
-                        </p>
                 </div>
             </div>
 
@@ -1491,6 +1488,9 @@ const ExcelDataTransformer = () => {
                 )}
             </div>
         </div>
+         <p className="text-xs text-gray-400 mt-2">
+                            Built with ❤️ by OneVue Team
+                        </p>
     );
 };
 
