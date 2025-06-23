@@ -1469,7 +1469,7 @@ const ExcelDataTransformer = () => {
   className="w-64 h-auto mx-auto mb-4"
 />
 
-                            <h3 className="text-lg font-medium text-gray-600 mb-2">No Data to Display</h3>
+                            <h3 className="text-lg font-medium text-gray-600 mb-8">No Data to Display</h3>
                             <p className="text-gray-400">
                                 Upload Excel files to see the transformed data here
                             </p>
