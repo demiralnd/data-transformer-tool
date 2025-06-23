@@ -1464,7 +1464,7 @@ const ExcelDataTransformer = () => {
                     <div className="flex-1 flex items-center justify-center bg-white rounded-lg shadow border min-h-96">
                         <div className="text-center">
                      <img
-  src="/public/public/writers-block-rafiki.svg"
+  src="/public/writers-block-rafiki.svg"
   alt="Rafiki Illustration"
   className="w-64 h-auto mx-auto mb-4"
 />
