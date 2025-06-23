@@ -1190,7 +1190,7 @@ const ExcelDataTransformer = () => {
                             Excel Data Transformer
                         </h1>
                         <p className="text-sm text-white">
-                            Transform and analyze your marketing data with configurable columns
+                            Transform and analyze your Gemius marketing data with configurable columns
                         </p>
                     </div>
 
