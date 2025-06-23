@@ -1184,12 +1184,12 @@ const ExcelDataTransformer = () => {
             </div>
 
             <div className="w-3/4 p-6 overflow-auto">
-                <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm border">
+<div className="flex justify-between items-center mb-6 bg-[#ff3634] p-4 rounded-lg shadow-sm border">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">
+                        <h1 className="text-2xl font-bold text-white">
                             Excel Data Transformer
                         </h1>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-white">
                             Transform and analyze your marketing data with configurable columns
                         </p>
                     </div>
