@@ -1094,7 +1094,7 @@ const ExcelDataTransformer = () => {
                     </a>
                 </div>
 
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors mb-6">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-red-400 transition-colors mb-6">
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -1106,7 +1106,11 @@ const ExcelDataTransformer = () => {
                         multiple
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
-                        <div className="text-5xl mb-2 text-gray-400">⬆</div>
+                                             <img
+  src="/public/upload-bro.svg"
+  alt="Upload"
+  className="w-64 h-auto mx-auto mb-4"
+/>
                         <p className="text-sm text-gray-600">
                             {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
                         </p>
@@ -1464,16 +1468,16 @@ const ExcelDataTransformer = () => {
                     <div className="flex-1 flex items-center justify-center bg-white rounded-lg shadow border min-h-96">
                         <div className="text-center">
                      <img
-  src="/public/writers-block-rafiki.svg"
-  alt="Rafiki Illustration"
+  src="/writers-block-rafiki.svg"
+  alt="No Data"
   className="w-64 h-auto mx-auto mb-4"
 />
 
-                            <h3 className="text-lg font-medium text-gray-600 mb-2">No Data to Display</h3>
+                            <h3 className="text-lg font-medium text-gray-600">No Data to Display</h3>
                             <p className="text-gray-400">
                                 Upload Excel files to see the transformed data here
                             </p>
-                            <p className="text-sm text-gray-400 mt-2">
+                            <p className="text-sm text-gray-400 mt-2 mb-20">
                                 Multiple files will be combined into one dataset
                             </p>
                         </div>
