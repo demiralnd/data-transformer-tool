@@ -1107,7 +1107,7 @@ const ExcelDataTransformer = () => {
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
                                              <img
-  src="/public/upload-bro.svg"
+  src="/upload-bro.svg"
   alt="Upload"
   className="w-32 h-auto mx-auto mb-4"
 />
@@ -1468,7 +1468,7 @@ const ExcelDataTransformer = () => {
                     <div className="flex-1 flex items-center justify-center bg-white rounded-lg shadow border min-h-96">
                         <div className="text-center">
                      <img
-  src="/public/writers-block-rafiki.svg"
+  src="/writers-block-rafiki.svg"
   alt="No Data"
   className="w-64 h-auto mx-auto mb-4"
 />
