@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
 
@@ -32,6 +32,20 @@ const ExcelDataTransformer = () => {
     });
     const fileInputRef = useRef(null);
 
+    // Effect to switch to impression chart if current chart type's column is disabled
+    useEffect(() => {
+        if (transformedData.length > 0) {
+            const hasAdType = transformedData[0].hasOwnProperty('Ad Type');
+            const hasMediaType = transformedData[0].hasOwnProperty('Media Type');
+            
+            if (activeChart === 'adtype' && !hasAdType) {
+                setActiveChart('impression');
+            } else if (activeChart === 'mediatype' && !hasMediaType) {
+                setActiveChart('impression');
+            }
+        }
+    }, [transformedData, activeChart]);
+
     const monthOrder = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
@@ -50,8 +64,12 @@ const ExcelDataTransformer = () => {
         const fileNames = [...new Set(transformedData.map(row => row['File Name']))].filter(Boolean);
         const brands = [...new Set(transformedData.map(row => row['Brand Name']))].filter(Boolean);
         const years = [...new Set(transformedData.map(row => row['Year']))].filter(Boolean).sort();
-        const adTypes = [...new Set(transformedData.map(row => row['Ad Type']))].filter(Boolean);
-        const mediaTypes = [...new Set(transformedData.map(row => row['Media Type']))].filter(Boolean);
+        const adTypes = transformedData.length > 0 && transformedData[0].hasOwnProperty('Ad Type') 
+            ? [...new Set(transformedData.map(row => row['Ad Type']))].filter(Boolean)
+            : [];
+        const mediaTypes = transformedData.length > 0 && transformedData[0].hasOwnProperty('Media Type')
+            ? [...new Set(transformedData.map(row => row['Media Type']))].filter(Boolean)
+            : [];
         const months = [...new Set(transformedData.map(row => row['Month']))].filter(Boolean);
 
         return { fileNames, brands, years, adTypes, mediaTypes, months };
@@ -82,7 +100,7 @@ const ExcelDataTransformer = () => {
         const brandTotals = {};
 
         filteredData.forEach(row => {
-            const brand = row['Brand Name'];
+            const brand = row['Brand Name'] || 'Unknown';
             const impressionStr = row['Impression (ad contact)']?.toString().replace(/,/g, '') || '0';
             const impression = parseFloat(impressionStr);
             const validImpression = isNaN(impression) ? 0 : impression;
@@ -109,10 +127,16 @@ const ExcelDataTransformer = () => {
 
     const getAdTypeChartData = () => {
         const filteredData = getFilteredChartData();
+        
+        // Check if Ad Type column exists
+        if (filteredData.length === 0 || !filteredData[0].hasOwnProperty('Ad Type')) {
+            return [];
+        }
+
         const brandAdTypes = {};
 
         filteredData.forEach(row => {
-            const brand = row['Brand Name'];
+            const brand = row['Brand Name'] || 'Unknown';
             const adType = row['Ad Type']?.toString().trim() || 'Unknown';
             const impressionStr = row['Impression (ad contact)']?.toString().replace(/,/g, '') || '0';
             const impression = parseFloat(impressionStr) || 0;
@@ -145,10 +169,16 @@ const ExcelDataTransformer = () => {
 
     const getMediaTypeChartData = () => {
         const filteredData = getFilteredChartData();
+        
+        // Check if Media Type column exists
+        if (filteredData.length === 0 || !filteredData[0].hasOwnProperty('Media Type')) {
+            return [];
+        }
+
         const brandMediaTypes = {};
 
         filteredData.forEach(row => {
-            const brand = row['Brand Name'];
+            const brand = row['Brand Name'] || 'Unknown';
             const mediaType = row['Media Type']?.toString().trim() || 'Unknown';
             const impressionStr = row['Impression (ad contact)']?.toString().replace(/,/g, '') || '0';
             const impression = parseFloat(impressionStr) || 0;
@@ -493,25 +523,19 @@ const ExcelDataTransformer = () => {
                         // Always start with File Name
                         transformedRow['File Name'] = fileName;
 
-                        // Add Brand Name
+                        // Add Brand Name only if included
                         if (columnConfig.includeBrand) {
                             transformedRow['Brand Name'] = row[columnMapping.brand] || '';
-                        } else {
-                            transformedRow['Brand Name'] = 'N/A';
                         }
 
-                        // Add Media Type if included
+                        // Add Media Type only if included
                         if (columnConfig.includeMediaType) {
                             transformedRow['Media Type'] = row[columnMapping.mediaType] || '';
-                        } else {
-                            transformedRow['Media Type'] = 'N/A';
                         }
 
-                        // Add Ad Type if included
+                        // Add Ad Type only if included
                         if (columnConfig.includeAdType) {
                             transformedRow['Ad Type'] = row[columnMapping.adType] || '';
-                        } else {
-                            transformedRow['Ad Type'] = 'N/A';
                         }
 
                         // Add Year, Month, and Impression
@@ -692,6 +716,21 @@ const ExcelDataTransformer = () => {
 
             case 'adtype':
                 const adTypeData = getAdTypeChartData();
+                
+                // Check if Ad Type column is available
+                if (transformedData.length === 0 || !transformedData[0].hasOwnProperty('Ad Type')) {
+                    return (
+                        <div className="h-96 flex items-center justify-center">
+                            <div className="text-center p-4 bg-yellow-50 rounded border">
+                                <p className="text-gray-700 font-medium mb-2">Ad Type column is not included</p>
+                                <div className="text-sm text-gray-600 space-y-1">
+                                    <p>Enable "Ad Type" in Column Configuration to view this chart</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+                
                 if (adTypeData.length === 0) {
                     const filteredData = getFilteredChartData();
                     const uniqueAdTypes = [...new Set(filteredData.map(r => r['Ad Type']))].filter(Boolean);
@@ -753,6 +792,21 @@ const ExcelDataTransformer = () => {
 
             case 'mediatype':
                 const mediaTypeData = getMediaTypeChartData();
+                
+                // Check if Media Type column is available
+                if (transformedData.length === 0 || !transformedData[0].hasOwnProperty('Media Type')) {
+                    return (
+                        <div className="h-96 flex items-center justify-center">
+                            <div className="text-center p-4 bg-yellow-50 rounded border">
+                                <p className="text-gray-700 font-medium mb-2">Media Type column is not included</p>
+                                <div className="text-sm text-gray-600 space-y-1">
+                                    <p>Enable "Media Type" in Column Configuration to view this chart</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+                
                 if (mediaTypeData.length === 0) {
                     const filteredData = getFilteredChartData();
                     const uniqueMediaTypes = [...new Set(filteredData.map(r => r['Media Type']))].filter(Boolean);
@@ -1366,26 +1420,32 @@ const ExcelDataTransformer = () => {
                                     <span className="mr-2">○</span>
                                     SOV (Impression)
                                 </button>
-                                <button
-                                    onClick={() => setActiveChart('adtype')}
-                                    className={`px-4 py-2 rounded-lg flex items-center transition-all duration-200 shadow-md ${activeChart === 'adtype'
-                                            ? 'bg-red-500 text-white hover:bg-red-600'
-                                            : 'bg-red-200 text-gray-700 hover:bg-red-300'
-                                        }`}
-                                >
-                                    <span className="mr-2">▬</span>
-                                    Ad Type
-                                </button>
-                                <button
-                                    onClick={() => setActiveChart('mediatype')}
-                                    className={`px-4 py-2 rounded-lg flex items-center transition-all duration-200 shadow-md ${activeChart === 'mediatype'
-                                            ? 'bg-red-500 text-white hover:bg-red-600'
-                                            : 'bg-red-200 text-gray-700 hover:bg-red-300'
-                                        }`}
-                                >
-                                    <span className="mr-2">▬</span>
-                                    Media Type
-                                </button>
+                                
+                                {transformedData.length > 0 && transformedData[0].hasOwnProperty('Ad Type') && (
+                                    <button
+                                        onClick={() => setActiveChart('adtype')}
+                                        className={`px-4 py-2 rounded-lg flex items-center transition-all duration-200 shadow-md ${activeChart === 'adtype'
+                                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                                : 'bg-red-200 text-gray-700 hover:bg-red-300'
+                                            }`}
+                                    >
+                                        <span className="mr-2">▬</span>
+                                        Ad Type
+                                    </button>
+                                )}
+                                
+                                {transformedData.length > 0 && transformedData[0].hasOwnProperty('Media Type') && (
+                                    <button
+                                        onClick={() => setActiveChart('mediatype')}
+                                        className={`px-4 py-2 rounded-lg flex items-center transition-all duration-200 shadow-md ${activeChart === 'mediatype'
+                                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                                : 'bg-red-200 text-gray-700 hover:bg-red-300'
+                                            }`}
+                                    >
+                                        <span className="mr-2">▬</span>
+                                        Media Type
+                                    </button>
+                                )}
                             </div>
 
                             {renderFilters()}
