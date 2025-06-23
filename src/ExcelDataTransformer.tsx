@@ -1120,6 +1120,10 @@ const ExcelDataTransformer = () => {
                     </label>
                 </div>
 
+                 <p className="text-xs text-gray-400 mt-1">
+                            Made with <3 by OneVue Team
+                        </p>
+
                 {uploadedFiles.length > 0 && (
                     <div className="mb-4 flex-1 overflow-y-auto">
                         <h3 className="font-medium text-gray-800 mb-3">Uploaded Files ({uploadedFiles.length}):</h3>
