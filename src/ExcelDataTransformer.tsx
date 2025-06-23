@@ -1116,15 +1116,13 @@ const ExcelDataTransformer = () => {
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
                             Supports .xlsx, .xls, .csv (Multiple files allowed)
+                            Made with ❤️ by OneVue Team
+
                         </p>
                     </label>
                 </div>
                 
- <div 
-                 <p className="text-xs text-gray-400 mt-1">
-                            Made with <3 by OneVue Team
-                        </p>
-</div>
+
                 
                 {uploadedFiles.length > 0 && (
                     <div className="mb-4 flex-1 overflow-y-auto">
