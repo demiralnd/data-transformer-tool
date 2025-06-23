@@ -1463,7 +1463,12 @@ const ExcelDataTransformer = () => {
                 ) : (
                     <div className="flex-1 flex items-center justify-center bg-white rounded-lg shadow border min-h-96">
                         <div className="text-center">
-                            <div className="text-6xl mb-4 text-gray-300">⬆</div>
+                     <img
+  src="/public/public/writers-block-rafiki.svg"
+  alt="Rafiki Illustration"
+  className="w-64 h-auto mx-auto mb-4"
+/>
+
                             <h3 className="text-lg font-medium text-gray-600 mb-2">No Data to Display</h3>
                             <p className="text-gray-400">
                                 Upload Excel files to see the transformed data here
