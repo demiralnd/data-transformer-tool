@@ -1468,9 +1468,9 @@ const ExcelDataTransformer = () => {
                     <div className="flex-1 flex items-center justify-center bg-white rounded-lg shadow border min-h-96">
                         <div className="text-center">
                      <img
-  src="/public/writers-block-rafiki.svg"
+  src="/public/upload-bro.svg"
   alt="No Data"
-  className="w-64 h-auto mx-auto mb-4"
+  className="w-32 h-auto mx-auto mb-4"
 />
 
                             <h3 className="text-lg font-medium text-gray-600">No Data to Display</h3>
