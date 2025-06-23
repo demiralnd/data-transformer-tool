@@ -1480,7 +1480,7 @@ const ExcelDataTransformer = () => {
                             <p className="text-gray-400">
                                 Upload Excel files to see the transformed data here
                             </p>
-                            <p className="text-sm text-gray-400 mt-2 mb-20">
+                            <p className="text-sm text-gray-400 mb-20">
                                 Multiple files will be combined into one dataset
                             </p>
                         </div>
