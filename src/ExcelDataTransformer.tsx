@@ -1109,7 +1109,7 @@ const ExcelDataTransformer = () => {
                                              <img
   src="/upload-bro.svg"
   alt="Upload"
-  className="w-64 h-auto mx-auto mb-4"
+  className="w-32 h-auto mx-auto mb-4"
 />
                         <p className="text-sm text-gray-600">
                             {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
