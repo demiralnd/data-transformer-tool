@@ -876,7 +876,7 @@ const ExcelDataTransformer = () => {
             <div className="mb-4">
                 <button
                     onClick={() => setShowColumnConfig(!showColumnConfig)}
-                    className="w-full bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-between shadow-md"
+                    className="w-full bg-red-500 text-white py-3 px-4 mb-6 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-between shadow-md"
                 >
                     <div className="flex items-center">
                         <span className="mr-2">⚙</span>
