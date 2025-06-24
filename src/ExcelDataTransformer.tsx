@@ -6,6 +6,8 @@ const ExcelDataTransformer = () => {
     const [uploadedFiles, setUploadedFiles] = useState([]);
     const [transformedData, setTransformedData] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [processingProgress, setProcessingProgress] = useState(0);
+    const [processingStatus, setProcessingStatus] = useState('');
     const [editingCell, setEditingCell] = useState(null);
     const [showBulkEdit, setShowBulkEdit] = useState(false);
     const [bulkEditFileName, setBulkEditFileName] = useState('');
@@ -59,6 +61,9 @@ const ExcelDataTransformer = () => {
         'mint': ['#06B8A2', '#05A692', '#049482', '#038272', '#027062', '#015E52', '#26C8B2', '#46D8C2'],
         'orchid': ['#806FEA', '#7363D1', '#6657B8', '#594B9F', '#4C3F86', '#3F336D', '#9485ED', '#A89BF0']
     };
+
+    // Sleep function for performance optimization
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     const getFilterOptions = () => {
         const fileNames = [...new Set(transformedData.map(row => row['File Name']))].filter(Boolean);
@@ -227,6 +232,8 @@ const ExcelDataTransformer = () => {
 
     const setDefaultFilters = (data) => {
         const dataToUse = data || transformedData;
+        if (dataToUse.length === 0) return;
+        
         const fileNames = [...new Set(dataToUse.map(row => row['File Name']))].filter(Boolean);
         const brands = [...new Set(dataToUse.map(row => row['Brand Name']))].filter(Boolean);
         const years = [...new Set(dataToUse.map(row => row['Year']))].filter(Boolean);
@@ -257,7 +264,7 @@ const ExcelDataTransformer = () => {
 
     const selectAllFilters = () => {
         if (transformedData.length > 0) {
-            setDefaultFilters(transformedData);
+            setDefaultFilters();
         }
     };
 
@@ -391,45 +398,72 @@ const ExcelDataTransformer = () => {
         if (files.length === 0) return;
 
         setIsProcessing(true);
+        setProcessingProgress(0);
+        setProcessingStatus('Starting...');
 
         try {
-            const newTransformedData = [...transformedData];
-            const newUploadedFiles = [...uploadedFiles];
+            for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+                const file = files[fileIndex];
+                const baseProgress = (fileIndex / files.length) * 100;
+                const fileProgressRange = 100 / files.length;
+                
+                setProcessingStatus(`Reading file: ${file.name}`);
+                setProcessingProgress(Math.min(baseProgress + (fileProgressRange * 0.1), 100));
+                await sleep(50);
 
-            for (const file of files) {
                 const arrayBuffer = await file.arrayBuffer();
+                
+                setProcessingStatus(`Parsing Excel file...`);
+                setProcessingProgress(Math.min(baseProgress + (fileProgressRange * 0.3), 100));
+                await sleep(50);
+
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
 
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-                const processedData = processData(jsonData, file.name);
+                setProcessingStatus(`Transforming data...`);
+                setProcessingProgress(Math.min(baseProgress + (fileProgressRange * 0.6), 100));
+                await sleep(50);
 
-                newTransformedData.push(...processedData.transformed);
-                newUploadedFiles.push({
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                
+                setProcessingStatus(`Processing data...`);
+                setProcessingProgress(Math.min(baseProgress + (fileProgressRange * 0.8), 100));
+                await sleep(50);
+
+                const processedData = await processDataAsync(jsonData, file.name);
+
+                // Add data immediately as it's processed
+                setTransformedData(prevData => [...prevData, ...processedData.transformed]);
+                setUploadedFiles(prevFiles => [...prevFiles, {
                     name: file.name,
                     size: file.size,
                     rowsAdded: processedData.transformed.length,
                     uploadedAt: new Date().toLocaleString()
-                });
+                }]);
+
+                setProcessingProgress(Math.min(baseProgress + fileProgressRange, 100));
+                await sleep(50);
             }
 
-            setTransformedData(newTransformedData);
-            setUploadedFiles(newUploadedFiles);
+            setProcessingStatus('Completed!');
+            await sleep(500);
 
-            if (uploadedFiles.length === 0) {
-                setDefaultFilters(newTransformedData);
-            } else {
+            // Set filters only once at the end
+            setTimeout(() => {
                 const currentHasFilters = Object.values(chartFilters).some(filterArray => filterArray.length > 0);
                 if (!currentHasFilters) {
-                    setDefaultFilters(newTransformedData);
+                    setDefaultFilters();
                 }
-            }
+            }, 100);
+
         } catch (error) {
             console.error('Error processing file:', error);
             alert('Error processing file. Please make sure it\'s a valid Excel file.');
         } finally {
             setIsProcessing(false);
+            setProcessingProgress(0);
+            setProcessingStatus('');
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
@@ -463,6 +497,42 @@ const ExcelDataTransformer = () => {
         }
 
         const transformedData = transformToLongFormat(processedData, fileName);
+
+        return {
+            original: processedData,
+            transformed: transformedData
+        };
+    };
+
+    // Async version for better performance with large files
+    const processDataAsync = async (data, fileName) => {
+        let processedData = data.slice(18);
+
+        processedData = processedData.filter(row => {
+            const rowString = row.join(' ').toLowerCase();
+            return !rowString.includes('all ad types') &&
+                !rowString.includes('all media types') &&
+                !rowString.includes('all brands') &&
+                !rowString.includes('all ');
+        });
+
+        if (processedData.length > 0) {
+            const headerRow = processedData[0];
+            const sumColumnIndex = headerRow.findIndex(cell =>
+                cell && cell.toString().toLowerCase().includes('sum')
+            );
+
+            if (sumColumnIndex !== -1) {
+                processedData = processedData.map(row => {
+                    const newRow = [...row];
+                    newRow.splice(sumColumnIndex, 1);
+                    return newRow;
+                });
+            }
+        }
+
+        // For large datasets, process in chunks
+        const transformedData = await transformToLongFormatAsync(processedData, fileName);
 
         return {
             original: processedData,
@@ -509,7 +579,7 @@ const ExcelDataTransformer = () => {
             currentIndex++;
         }
 
-                        dataRows.forEach(row => {
+        dataRows.forEach(row => {
             // Check if we have brand data (required for processing)
             const hasBrandData = columnConfig.includeBrand ? (row[columnMapping.brand] && row[columnMapping.brand] !== '') : true;
             
@@ -548,6 +618,100 @@ const ExcelDataTransformer = () => {
                 });
             }
         });
+
+        return transformedRows;
+    };
+
+    // Async version for better performance
+    const transformToLongFormatAsync = async (data, fileName) => {
+        if (data.length < 2) return [];
+
+        const headerRow = data[0];
+        const dataRows = data.slice(1);
+
+        const monthColumns = [];
+        headerRow.forEach((header, index) => {
+            if (header && header.toString().match(/\d{4}\s+\w+/)) {
+                monthColumns.push({
+                    index: index,
+                    header: header.toString(),
+                    year: header.toString().split(' ')[0],
+                    month: header.toString().split(' ')[1]
+                });
+            }
+        });
+
+        const transformedRows = [];
+
+        // Determine column indices based on configuration
+        let currentIndex = 0;
+        const columnMapping = {};
+
+        if (columnConfig.includeBrand) {
+            columnMapping.brand = currentIndex;
+            currentIndex++;
+        }
+
+        if (columnConfig.includeMediaType) {
+            columnMapping.mediaType = currentIndex;
+            currentIndex++;
+        }
+
+        if (columnConfig.includeAdType) {
+            columnMapping.adType = currentIndex;
+            currentIndex++;
+        }
+
+        // Process in chunks for better performance
+        const chunkSize = 100;
+        for (let i = 0; i < dataRows.length; i += chunkSize) {
+            const chunk = dataRows.slice(i, i + chunkSize);
+            
+            chunk.forEach(row => {
+                // Check if we have brand data (required for processing)
+                const hasBrandData = columnConfig.includeBrand ? (row[columnMapping.brand] && row[columnMapping.brand] !== '') : true;
+                
+                if (hasBrandData) {
+                    monthColumns.forEach(monthCol => {
+                        const impressionValue = row[monthCol.index];
+                        if (impressionValue && impressionValue !== '' && impressionValue !== '-') {
+                            // Create row in the correct order: file name, brand name, media type, ad type, year, month, impression
+                            const transformedRow = {};
+
+                            // Always start with File Name
+                            transformedRow['File Name'] = fileName;
+
+                            // Add Brand Name only if included
+                            if (columnConfig.includeBrand) {
+                                transformedRow['Brand Name'] = row[columnMapping.brand] || '';
+                            }
+
+                            // Add Media Type only if included
+                            if (columnConfig.includeMediaType) {
+                                transformedRow['Media Type'] = row[columnMapping.mediaType] || '';
+                            }
+
+                            // Add Ad Type only if included
+                            if (columnConfig.includeAdType) {
+                                transformedRow['Ad Type'] = row[columnMapping.adType] || '';
+                            }
+
+                            // Add Year, Month, and Impression
+                            transformedRow['Year'] = monthCol.year;
+                            transformedRow['Month'] = monthCol.month;
+                            transformedRow['Impression (ad contact)'] = impressionValue;
+
+                            transformedRows.push(transformedRow);
+                        }
+                    });
+                }
+            });
+
+            // Allow UI to update every chunk
+            if (i % (chunkSize * 5) === 0) {
+                await sleep(10);
+            }
+        }
 
         return transformedRows;
     };
@@ -1070,6 +1234,29 @@ const ExcelDataTransformer = () => {
         );
     };
 
+    // Loading bar component - simplified inline version
+    const renderProgressBar = () => {
+        if (!isProcessing) return null;
+
+        return (
+            <div className="bg-blue-50 p-3 rounded-lg border">
+                <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
+                    <span className="flex items-center truncate flex-1 mr-2">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500 mr-2 flex-shrink-0"></div>
+                        <span className="truncate">{processingStatus}</span>
+                    </span>
+                    <span className="text-xs font-medium flex-shrink-0">{Math.round(processingProgress)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div 
+                        className="bg-red-500 h-1.5 rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${Math.min(Math.max(processingProgress, 0), 100)}%` }}
+                    ></div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="flex h-screen bg-gray-50">
             <div className="w-1/4 bg-white border-r border-gray-200 p-6 flex flex-col">
@@ -1106,23 +1293,21 @@ const ExcelDataTransformer = () => {
                         multiple
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
-                                             <img
-  src="/upload-bro.svg"
-  alt="Upload"
-  className="w-48 h-auto mx-auto mb-4"
-/>
+                        <img
+                            src="/upload-bro.svg"
+                            alt="Upload"
+                            className="w-48 h-auto mx-auto mb-4"
+                        />
                         <p className="text-sm text-gray-600">
                             {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
                             Supports .xlsx, .xls, .csv (Multiple files allowed)
                         </p>
-
                     </label>
                 </div>
-                
 
-                
+                {renderProgressBar()}
                 {uploadedFiles.length > 0 && (
                     <div className="mb-4 flex-1 overflow-y-auto">
                         <h3 className="font-medium text-gray-800 mb-3">Uploaded Files ({uploadedFiles.length}):</h3>
@@ -1187,7 +1372,7 @@ const ExcelDataTransformer = () => {
             </div>
 
             <div className="w-3/4 p-6 overflow-auto">
-<div className="flex justify-between items-center mb-2 bg-[#ef4445] p-4 rounded-lg shadow-sm border">
+                <div className="flex justify-between items-center mb-2 bg-red-500 p-4 rounded-lg shadow-sm border">
                     <div>
                         <h1 className="text-2xl font-bold text-white">
                             Excel Data Transformer
@@ -1303,7 +1488,6 @@ const ExcelDataTransformer = () => {
                                     </div>
                                 </div>
                             )}
-
 
                             <div className="overflow-auto max-h-96">
                                 <table className="w-full">
@@ -1470,11 +1654,11 @@ const ExcelDataTransformer = () => {
                 ) : (
                     <div className="flex-1 flex items-center justify-center bg-white rounded-lg shadow border min-h-96">
                         <div className="text-center">
-                     <img
-  src="/writers-block-rafiki.svg"
-  alt="No Data"
-  className="w-72 h-auto mx-auto mb-4"
-/>
+                            <img
+                                src="/writers-block-rafiki.svg"
+                                alt="No Data"
+                                className="w-72 h-auto mx-auto mb-4"
+                            />
 
                             <h3 className="text-lg font-medium text-gray-600">No Data to Display</h3>
                             <p className="text-gray-400">
@@ -1486,12 +1670,8 @@ const ExcelDataTransformer = () => {
                             <p className="text-xs text-gray-400 mb-2">
                                 Built by OneVue Team
                             </p>
-                            
-
                         </div>
                     </div>
-
-    
                 )}
             </div>
         </div>
