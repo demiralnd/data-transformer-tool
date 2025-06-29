@@ -793,7 +793,7 @@ const ExcelDataTransformer = () => {
                 }
                 return (
                     <div className="flex h-96">
-                        <div className="flex-1">
+                        <div className="flex-1" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))' }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <RechartsPieChart>
                                     <Pie
@@ -803,8 +803,10 @@ const ExcelDataTransformer = () => {
                                         outerRadius={120}
                                         fill="#8884d8"
                                         dataKey="value"
-                                        label={({ percentage }) => percentage >= 2 ? `${percentage}%` : ''}
+                                        label={({ name, percentage }) => percentage >= 3 ? `${name}: ${percentage}%` : ''}
                                         labelLine={false}
+                                        stroke="#fff"
+                                        strokeWidth={2}
                                     >
                                         {impressionChartData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={currentColors[index % currentColors.length]} />
@@ -1370,9 +1372,9 @@ const ExcelDataTransformer = () => {
                         <p className="mb-2 font-medium">Features:</p>
                         <ul className="space-y-1">
                             <li>• Data processing & transformation</li>
-                            <li>• Smart column sorting</li>
+                            <li>• Skips first 18 rows & summary rows</li>
+                            <li>• Filters empty/invalid impression data</li>
                             <li>• Editable cells & column names</li>
-                            <li>• Bulk editing capabilities</li>
                             <li>• Interactive charts with filtering</li>
                             <li>• SOV, Ad Type & Media Type analysis</li>
                             <li>• Configurable column mapping</li>
