@@ -1422,115 +1422,118 @@ const ExcelDataTransformer = () => {
 
     return (
         <div className="flex h-screen bg-gray-50">
-            <div className="w-1/4 bg-white border-r border-gray-200 p-6 flex flex-col">
-                <div className="mb-6 text-center">
-                    <img
-                        src="https://www.umww.com/wp-content/uploads/2024/06/logo-new.png"
-                        alt="UMWW Logo"
-                        className="h-16 w-auto mx-auto mb-4 object-contain max-w-full"
-                        onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                        }}
-                    />
-                    <a
-                        href="https://www.umww.com/wp-content/uploads/2024/06/logo-new.png"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-500 hover:text-red-600 text-sm underline"
-                        style={{ display: 'none' }}
-                    >
-                        UMWW Logo
-                    </a>
-                </div>
-
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-red-400 transition-colors mb-6">
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".xlsx,.xls,.csv"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        id="file-upload"
-                        disabled={isProcessing}
-                        multiple
-                    />
-                    <label htmlFor="file-upload" className="cursor-pointer">
+            <div className="w-1/4 bg-white border-r border-gray-200 flex flex-col h-screen">
+                <div className="flex-1 overflow-y-auto p-6">
+                    <div className="mb-6 text-center">
                         <img
-                            src="/upload-bro.svg"
-                            alt="Upload"
-                            className="w-48 h-auto mx-auto mb-4"
+                            src="https://www.umww.com/wp-content/uploads/2024/06/logo-new.png"
+                            alt="UMWW Logo"
+                            className="h-16 w-auto mx-auto mb-4 object-contain max-w-full"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                            }}
                         />
-                        <p className="text-sm text-gray-600">
-                            {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                            Supports .xlsx, .xls, .csv (Multiple files allowed)
-                        </p>
-                    </label>
-                </div>
+                        <a
+                            href="https://www.umww.com/wp-content/uploads/2024/06/logo-new.png"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-red-500 hover:text-red-600 text-sm underline"
+                            style={{ display: 'none' }}
+                        >
+                            UMWW Logo
+                        </a>
+                    </div>
 
-                {renderProgressBar()}
-                {uploadedFiles.length > 0 && (
-                    <div className="mb-4 flex-1 overflow-y-auto">
-                        <h3 className="font-medium text-gray-800 mb-3">Uploaded Files ({uploadedFiles.length}):</h3>
-                        <div className="space-y-2">
-                            {uploadedFiles.map((file, index) => (
-                                <div key={index} className="bg-blue-50 p-3 rounded-lg">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-blue-700 font-medium truncate">{file.name}</p>
-                                            <p className="text-xs text-blue-600">
-                                                {(file.size / 1024).toFixed(1)} KB • {file.rowsAdded} rows
-                                            </p>
-                                            <p className="text-xs text-blue-500">{file.uploadedAt}</p>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-red-400 transition-colors mb-6">
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xlsx,.xls,.csv"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            id="file-upload"
+                            disabled={isProcessing}
+                            multiple
+                        />
+                        <label htmlFor="file-upload" className="cursor-pointer">
+                            <img
+                                src="/upload-bro.svg"
+                                alt="Upload"
+                                className="w-48 h-auto mx-auto mb-4"
+                            />
+                            <p className="text-sm text-gray-600">
+                                {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                                Supports .xlsx, .xls, .csv (Multiple files allowed)
+                            </p>
+                        </label>
+                    </div>
+
+                    {renderProgressBar()}
+                    
+                    {uploadedFiles.length > 0 && (
+                        <div className="mb-6">
+                            <h3 className="font-medium text-gray-800 mb-3">Uploaded Files ({uploadedFiles.length}):</h3>
+                            <div className="space-y-2">
+                                {uploadedFiles.map((file, index) => (
+                                    <div key={index} className="bg-blue-50 p-3 rounded-lg">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-blue-700 font-medium truncate">{file.name}</p>
+                                                <p className="text-xs text-blue-600">
+                                                    {(file.size / 1024).toFixed(1)} KB • {file.rowsAdded} rows
+                                                </p>
+                                                <p className="text-xs text-blue-500">{file.uploadedAt}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => removeFile(index)}
+                                                className="ml-2 text-red-500 hover:text-red-700"
+                                            >
+                                                <span className="text-sm">×</span>
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => removeFile(index)}
-                                            className="ml-2 text-red-500 hover:text-red-700"
-                                        >
-                                            <span className="text-sm">×</span>
-                                        </button>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {transformedData.length > 0 && (
-                    <div className="space-y-3">
-                        <button
-                            onClick={copyAllData}
-                            className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md"
-                        >
-                            <span className="mr-2">⧉</span>
-                            Copy All Data
-                        </button>
+                    {transformedData.length > 0 && (
+                        <div className="space-y-3 mb-6">
+                            <button
+                                onClick={copyAllData}
+                                className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md"
+                            >
+                                <span className="mr-2">⧉</span>
+                                Copy All Data
+                            </button>
 
-                        <button
-                            onClick={clearAllData}
-                            className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md"
-                        >
-                            <span className="mr-2">×</span>
-                            Clear All Data
-                        </button>
-                    </div>
-                )}
+                            <button
+                                onClick={clearAllData}
+                                className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md"
+                            >
+                                <span className="mr-2">×</span>
+                                Clear All Data
+                            </button>
+                        </div>
+                    )}
 
-                <div className="mt-auto pt-4 border-t border-gray-200">
-                    <div className="text-xs text-gray-500">
-                        <p className="mb-2 font-medium">Features:</p>
-                        <ul className="space-y-1">
-                            <li>• Data processing & transformation</li>
-                            <li>• Skips first 18 rows & summary rows</li>
-                            <li>• Filters empty/invalid impression data</li>
-                            <li>• Editable cells & column names</li>
-                            <li>• Interactive charts with filtering</li>
-                            <li>• SOV, Ad Type & Media Type analysis</li>
-                            <li>• Configurable column mapping</li>
-                            <li>• Pagination for large datasets</li>
-                        </ul>
+                    <div className="pt-4 border-t border-gray-200">
+                        <div className="text-xs text-gray-500">
+                            <p className="mb-2 font-medium">Features:</p>
+                            <ul className="space-y-1">
+                                <li>• Data processing & transformation</li>
+                                <li>• Skips first 18 rows & summary rows</li>
+                                <li>• Filters empty/invalid impression data</li>
+                                <li>• Editable cells & column names</li>
+                                <li>• Interactive charts with filtering</li>
+                                <li>• SOV, Ad Type & Media Type analysis</li>
+                                <li>• Configurable column mapping</li>
+                                <li>• Pagination for large datasets</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
