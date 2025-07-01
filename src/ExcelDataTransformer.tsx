@@ -15,6 +15,8 @@ const ExcelDataTransformer = () => {
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [activeChart, setActiveChart] = useState('impression');
     const [colorScheme, setColorScheme] = useState('new-heritage-red');
+    const [customColors, setCustomColors] = useState(['#FF3534', '#3197EE', '#06B8A2', '#FFB84E', '#F585DA', '#806FEA', '#99170C', '#216AA3', '#027062', '#B37930']);
+    const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [editingHeader, setEditingHeader] = useState(null);
     const [columnDisplayNames, setColumnDisplayNames] = useState({});
@@ -77,7 +79,31 @@ const ExcelDataTransformer = () => {
         'flamingo': ['#F585DA', '#DC76C1', '#C267A8', '#A9588F', '#8F4976', '#763A5D', '#F799E4', '#F9ADEE', '#FBBDF8', '#FDCDFC'],
         'lake': ['#3197EE', '#2C88D5', '#2679BC', '#216AA3', '#1B5B8A', '#164C71', '#51A7F1', '#71B7F4', '#91C7F7', '#B1D7FA'],
         'mint': ['#06B8A2', '#05A692', '#049482', '#038272', '#027062', '#015E52', '#26C8B2', '#46D8C2', '#66E8D2', '#86F8E2'],
-        'orchid': ['#806FEA', '#7363D1', '#6657B8', '#594B9F', '#4C3F86', '#3F336D', '#9485ED', '#A89BF0', '#BCB1F3', '#D0C7F6']
+        'orchid': ['#806FEA', '#7363D1', '#6657B8', '#594B9F', '#4C3F86', '#3F336D', '#9485ED', '#A89BF0', '#BCB1F3', '#D0C7F6'],
+        'custom': customColors
+    };
+
+    const handleCustomColorChange = (index, color) => {
+        const newCustomColors = [...customColors];
+        newCustomColors[index] = color;
+        setCustomColors(newCustomColors);
+    };
+
+    const addCustomColor = () => {
+        if (customColors.length < 20) {
+            setCustomColors([...customColors, '#000000']);
+        }
+    };
+
+    const removeCustomColor = (index) => {
+        if (customColors.length > 1) {
+            const newCustomColors = customColors.filter((_, i) => i !== index);
+            setCustomColors(newCustomColors);
+        }
+    };
+
+    const resetCustomColors = () => {
+        setCustomColors(['#FF3534', '#3197EE', '#06B8A2', '#FFB84E', '#F585DA', '#806FEA', '#99170C', '#216AA3', '#027062', '#B37930']);
     };
 
     // Optimized sleep function
@@ -206,16 +232,16 @@ const ExcelDataTransformer = () => {
                 const Total = Object.values(adTypes).reduce((sum, val) => sum + val, 0);
                 if (Total === 0) return null;
 
-                const percentages = { name: brand, Total: Total };
+                const percentages = { name: brand };
                 Object.entries(adTypes).forEach(([adType, value]) => {
                     percentages[adType] = Number(((value / Total) * 100).toFixed(1));
                     percentages[`${adType}Value`] = value;
                 });
 
-                return percentages;
+                return { ...percentages, sortTotal: Total };
             })
             .filter(item => item !== null)
-            .sort((a, b) => b.Total - a.Total);
+            .sort((a, b) => b.sortTotal - a.sortTotal);
 
         // Apply threshold filtering similar to impression chart
         if (result.length > maxBrandsInAdTypeChart) {
@@ -224,13 +250,13 @@ const ExcelDataTransformer = () => {
             
             if (otherBrands.length > 0) {
                 // Aggregate "Others" data
-                const othersData = { name: `Others (${otherBrands.length} brands)`, Total: 0, isOthers: true, otherBrands: otherBrands.map(b => b.name) };
+                const othersData = { name: `Others (${otherBrands.length} brands)`, isOthers: true, otherBrands: otherBrands.map(b => b.name) };
                 const allAdTypes = new Set();
                 
                 // Collect all ad types
                 [...topBrands, ...otherBrands].forEach(brand => {
                     Object.keys(brand).forEach(key => {
-                        if (key !== 'name' && key !== 'Total' && key !== 'isOthers' && key !== 'otherBrands' && !key.includes('Value')) {
+                        if (key !== 'name' && key !== 'sortTotal' && key !== 'isOthers' && key !== 'otherBrands' && !key.includes('Value')) {
                             allAdTypes.add(key);
                         }
                     });
@@ -239,18 +265,20 @@ const ExcelDataTransformer = () => {
                 // Calculate aggregated values for others
                 allAdTypes.forEach(adType => {
                     const TotalValue = otherBrands.reduce((sum, brand) => sum + (brand[`${adType}Value`] || 0), 0);
-                    const TotalImpressions = otherBrands.reduce((sum, brand) => sum + brand.Total, 0);
+                    const TotalImpressions = otherBrands.reduce((sum, brand) => sum + brand.sortTotal, 0);
                     
                     othersData[adType] = TotalImpressions > 0 ? Number(((TotalValue / TotalImpressions) * 100).toFixed(1)) : 0;
                     othersData[`${adType}Value`] = TotalValue;
-                    othersData.Total += TotalValue;
                 });
                 
-                return [...topBrands.map(item => ({ ...item, Total: undefined })), { ...othersData, Total: undefined }];
+                // Remove sortTotal from all items
+                const cleanTopBrands = topBrands.map(({ sortTotal, ...item }) => item);
+                return [...cleanTopBrands, othersData];
             }
         }
 
-        return result.map(item => ({ ...item, Total: undefined }));
+        // Remove sortTotal from all items
+        return result.map(({ sortTotal, ...item }) => item);
     };
 
     const getMediaTypeChartData = () => {
@@ -280,16 +308,16 @@ const ExcelDataTransformer = () => {
                 const Total = Object.values(mediaTypes).reduce((sum, val) => sum + val, 0);
                 if (Total === 0) return null;
 
-                const percentages = { name: brand, Total: Total };
+                const percentages = { name: brand };
                 Object.entries(mediaTypes).forEach(([mediaType, value]) => {
                     percentages[mediaType] = Number(((value / Total) * 100).toFixed(1));
                     percentages[`${mediaType}Value`] = value;
                 });
 
-                return percentages;
+                return { ...percentages, sortTotal: Total };
             })
             .filter(item => item !== null)
-            .sort((a, b) => b.Total - a.Total);
+            .sort((a, b) => b.sortTotal - a.sortTotal);
 
         // Apply threshold filtering similar to impression chart
         if (result.length > maxBrandsInMediaTypeChart) {
@@ -298,13 +326,13 @@ const ExcelDataTransformer = () => {
             
             if (otherBrands.length > 0) {
                 // Aggregate "Others" data
-                const othersData = { name: `Others (${otherBrands.length} brands)`, Total: 0, isOthers: true, otherBrands: otherBrands.map(b => b.name) };
+                const othersData = { name: `Others (${otherBrands.length} brands)`, isOthers: true, otherBrands: otherBrands.map(b => b.name) };
                 const allMediaTypes = new Set();
                 
                 // Collect all media types
                 [...topBrands, ...otherBrands].forEach(brand => {
                     Object.keys(brand).forEach(key => {
-                        if (key !== 'name' && key !== 'Total' && key !== 'isOthers' && key !== 'otherBrands' && !key.includes('Value')) {
+                        if (key !== 'name' && key !== 'sortTotal' && key !== 'isOthers' && key !== 'otherBrands' && !key.includes('Value')) {
                             allMediaTypes.add(key);
                         }
                     });
@@ -313,18 +341,20 @@ const ExcelDataTransformer = () => {
                 // Calculate aggregated values for others
                 allMediaTypes.forEach(mediaType => {
                     const TotalValue = otherBrands.reduce((sum, brand) => sum + (brand[`${mediaType}Value`] || 0), 0);
-                    const TotalImpressions = otherBrands.reduce((sum, brand) => sum + brand.Total, 0);
+                    const TotalImpressions = otherBrands.reduce((sum, brand) => sum + brand.sortTotal, 0);
                     
                     othersData[mediaType] = TotalImpressions > 0 ? Number(((TotalValue / TotalImpressions) * 100).toFixed(1)) : 0;
                     othersData[`${mediaType}Value`] = TotalValue;
-                    othersData.Total += TotalValue;
                 });
                 
-                return [...topBrands.map(item => ({ ...item, Total: undefined })), { ...othersData, Total: undefined }];
+                // Remove sortTotal from all items
+                const cleanTopBrands = topBrands.map(({ sortTotal, ...item }) => item);
+                return [...cleanTopBrands, othersData];
             }
         }
 
-        return result.map(item => ({ ...item, Total: undefined }));
+        // Remove sortTotal from all items
+        return result.map(({ sortTotal, ...item }) => item);
     };
 
     const handleFilterChange = (filterType, value, checked) => {
@@ -1084,7 +1114,7 @@ const ExcelDataTransformer = () => {
                 if (transformedData.length === 0 || !transformedData[0].hasOwnProperty('Ad Type')) {
                     return (
                         <div className="h-96 flex items-center justify-center">
-                            <div className="text-center p-4 bg-yellow-50 rounded border">
+                            <div className="text-center p-4 bg-red-50 rounded border">
                                 <p className="text-gray-700 font-medium mb-2">Ad Type column is not included</p>
                                 <div className="text-sm text-gray-600 space-y-1">
                                     <p>Enable "Ad Type" in Column Configuration to view this chart</p>
@@ -1099,7 +1129,7 @@ const ExcelDataTransformer = () => {
 
                     return (
                         <div className="h-96 flex items-center justify-center">
-                            <div className="text-center p-4 bg-yellow-50 rounded border">
+                            <div className="text-center p-4 bg-red-50 rounded border">
                                 <p className="text-gray-700 font-medium mb-2">No ad type chart data available</p>
                                 <div className="text-sm text-gray-600 space-y-1">
                                     <p>Filtered rows: {filteredChartData.length}</p>
@@ -1165,7 +1195,7 @@ const ExcelDataTransformer = () => {
                 if (transformedData.length === 0 || !transformedData[0].hasOwnProperty('Media Type')) {
                     return (
                         <div className="h-96 flex items-center justify-center">
-                            <div className="text-center p-4 bg-yellow-50 rounded border">
+                            <div className="text-center p-4 bg-red-50 rounded border">
                                 <p className="text-gray-700 font-medium mb-2">Media Type column is not included</p>
                                 <div className="text-sm text-gray-600 space-y-1">
                                     <p>Enable "Media Type" in Column Configuration to view this chart</p>
@@ -1180,7 +1210,7 @@ const ExcelDataTransformer = () => {
 
                     return (
                         <div className="h-96 flex items-center justify-center">
-                            <div className="text-center p-4 bg-yellow-50 rounded border">
+                            <div className="text-center p-4 bg-red-50 rounded border">
                                 <p className="text-gray-700 font-medium mb-2">No media type chart data available</p>
                                 <div className="text-sm text-gray-600 space-y-1">
                                     <p>Filtered rows: {filteredChartData.length}</p>
@@ -1508,7 +1538,7 @@ const ExcelDataTransformer = () => {
                                                         type="checkbox"
                                                         checked={chartFilters[filterType].includes(value)}
                                                         onChange={(e) => handleFilterChange(filterType, value, e.target.checked)}
-                                                        className="mr-2 accent-pink-500"
+                                                        className="mr-2 accent-red-500"
                                                     />
                                                     <span className="truncate">{value || '(empty)'}</span>
                                                 </label>
@@ -1803,13 +1833,13 @@ const ExcelDataTransformer = () => {
                                                                     onChange={(e) => handleHeaderEdit(header, e.target.value)}
                                                                     onBlur={handleHeaderBlur}
                                                                     onKeyPress={handleHeaderKeyPress}
-                                                                    className="w-full px-1 py-0 border-0 outline-none bg-yellow-50 focus:bg-yellow-100 font-medium"
+                                                                    className="w-full px-1 py-0 border-0 outline-none bg-red-50 focus:bg-red-100 font-medium"
                                                                     autoFocus
                                                                 />
                                                             ) : (
                                                                 <div
                                                                     onClick={() => handleHeaderClick(header)}
-                                                                    className="cursor-pointer hover:bg-yellow-50 min-h-[20px] flex-1 flex items-center"
+                                                                    className="cursor-pointer hover:bg-red-50 min-h-[20px] flex-1 flex items-center"
                                                                 >
                                                                     {getDisplayName(header)}
                                                                 </div>
@@ -1845,13 +1875,13 @@ const ExcelDataTransformer = () => {
                                                                         onChange={(e) => handleCellEdit(actualRowIndex, column, e.target.value)}
                                                                         onBlur={handleCellBlur}
                                                                         onKeyPress={(e) => handleKeyPress(e, actualRowIndex, column)}
-                                                                        className="w-full px-1 py-0 border-0 outline-none bg-yellow-50 focus:bg-yellow-100"
+                                                                        className="w-full px-1 py-0 border-0 outline-none bg-red-50 focus:bg-red-100"
                                                                         autoFocus
                                                                     />
                                                                 ) : (
                                                                     <div
                                                                         onClick={() => handleCellClick(actualRowIndex, column)}
-                                                                        className="cursor-pointer hover:bg-yellow-50 min-h-[20px] w-full"
+                                                                        className="cursor-pointer hover:bg-red-50 min-h-[20px] w-full"
                                                                     >
                                                                         {row[column]}
                                                                     </div>
@@ -1878,7 +1908,7 @@ const ExcelDataTransformer = () => {
                                         <select
                                             value={colorScheme}
                                             onChange={(e) => setColorScheme(e.target.value)}
-                                            className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-pink-400"
+                                            className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-400"
                                         >
                                             <option value="new-heritage-red">New Heritage Red</option>
                                             <option value="sunburst">Sunburst</option>
@@ -1886,6 +1916,7 @@ const ExcelDataTransformer = () => {
                                             <option value="lake">Lake</option>
                                             <option value="mint">Mint</option>
                                             <option value="orchid">Orchid</option>
+                                            <option value="custom">Custom Colors</option>
                                         </select>
                                     </div>
                                     <button
@@ -1902,8 +1933,72 @@ const ExcelDataTransformer = () => {
                                         <span className="mr-1">⬇</span>
                                         Download Chart
                                     </button>
+                                    {colorScheme === 'custom' && (
+                                        <button
+                                            onClick={() => setShowCustomColorPicker(!showCustomColorPicker)}
+                                            className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-all duration-200 flex items-center shadow-md"
+                                        >
+                                            <span className="mr-1">🎨</span>
+                                            {showCustomColorPicker ? 'Hide' : 'Edit'} Colors
+                                        </button>
+                                    )}
                                 </div>
                             </div>
+
+                            {colorScheme === 'custom' && showCustomColorPicker && (
+                                <div className="bg-red-50 p-4 rounded-lg border mb-4">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h4 className="font-semibold text-red-800">Custom Color Palette</h4>
+                                        <div className="flex space-x-2">
+                                            <button
+                                                onClick={addCustomColor}
+                                                disabled={customColors.length >= 20}
+                                                className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-all duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                            >
+                                                + Add Color
+                                            </button>
+                                            <button
+                                                onClick={resetCustomColors}
+                                                className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-all duration-200"
+                                            >
+                                                Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-5 md:grid-cols-10 gap-3">
+                                        {customColors.map((color, index) => (
+                                            <div key={index} className="flex flex-col items-center space-y-2">
+                                                <div className="relative">
+                                                    <input
+                                                        type="color"
+                                                        value={color}
+                                                        onChange={(e) => handleCustomColorChange(index, e.target.value)}
+                                                        className="w-10 h-10 rounded border-2 border-gray-300 cursor-pointer hover:border-red-400 transition-colors"
+                                                        title={`Color ${index + 1}: ${color}`}
+                                                    />
+                                                    {customColors.length > 1 && (
+                                                        <button
+                                                            onClick={() => removeCustomColor(index)}
+                                                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                                                            title="Remove color"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-red-600 font-mono bg-white px-1 rounded">{color}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <div className="mt-3 text-sm text-red-600">
+                                        <p>• Click on any color circle to change it</p>
+                                        <p>• Colors will repeat if you have more data points than colors</p>
+                                        <p>• Maximum 20 colors allowed</p>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="flex flex-wrap gap-3 mb-6">
                                 <button
