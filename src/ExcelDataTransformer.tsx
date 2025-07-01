@@ -19,9 +19,14 @@ const ExcelDataTransformer = () => {
     const [editingHeader, setEditingHeader] = useState(null);
     const [columnDisplayNames, setColumnDisplayNames] = useState({});
     const [showColumnConfig, setShowColumnConfig] = useState(false);
-    // New states for chart optimization
-    const [maxBrandsInChart, setMaxBrandsInChart] = useState(10);
-    const [minPercentageThreshold, setMinPercentageThreshold] = useState(1);
+    
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(50);
+    
+    // Updated default values for chart optimization
+    const [maxBrandsInChart, setMaxBrandsInChart] = useState(5); // Changed from 10 to 5
+    const [minPercentageThreshold, setMinPercentageThreshold] = useState(5); // Changed from 1 to 5
     const [columnConfig, setColumnConfig] = useState({
         includeBrand: true,
         includeMediaType: true,
@@ -50,6 +55,11 @@ const ExcelDataTransformer = () => {
             }
         }
     }, [transformedData, activeChart]);
+
+    // Reset pagination when data changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [transformedData, sortConfig]);
 
     const monthOrder = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -449,6 +459,28 @@ const ExcelDataTransformer = () => {
         return sortedData;
     };
 
+    // Pagination logic
+    const getPaginatedData = () => {
+        const sortedData = getSortedData();
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = startIndex + rowsPerPage;
+        return sortedData.slice(startIndex, endIndex);
+    };
+
+    const getTotalPages = () => {
+        const sortedData = getSortedData();
+        return Math.ceil(sortedData.length / rowsPerPage);
+    };
+
+    const handlePageChange = (newPage) => {
+        setCurrentPage(Math.max(1, Math.min(newPage, getTotalPages())));
+    };
+
+    const handleRowsPerPageChange = (newRowsPerPage) => {
+        setRowsPerPage(newRowsPerPage);
+        setCurrentPage(1); // Reset to first page
+    };
+
     const getSortIcon = (columnKey) => {
         if (sortConfig.key !== columnKey) {
             return <span className="text-gray-400 ml-1">↕</span>;
@@ -456,6 +488,124 @@ const ExcelDataTransformer = () => {
         return sortConfig.direction === 'asc' ?
             <span className="text-blue-600 ml-1">↑</span> :
             <span className="text-blue-600 ml-1">↓</span>;
+    };
+
+    // Pagination controls component
+    const renderPaginationControls = () => {
+        const totalPages = getTotalPages();
+        const sortedData = getSortedData();
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = Math.min(startIndex + rowsPerPage, sortedData.length);
+
+        if (totalPages <= 1) return null;
+
+        const pageNumbers = [];
+        const maxVisiblePages = 5;
+        
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        
+        if (endPage - startPage < maxVisiblePages - 1) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            pageNumbers.push(i);
+        }
+
+        return (
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
+                <div className="flex items-center space-x-4">
+                    <div className="text-sm text-gray-700">
+                        Showing {startIndex + 1} to {endIndex} of {sortedData.length} entries
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-700">Rows per page:</span>
+                        <select
+                            value={rowsPerPage}
+                            onChange={(e) => handleRowsPerPageChange(parseInt(e.target.value))}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                        >
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                            <option value={250}>250</option>
+                            <option value={500}>500</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                    <button
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                    >
+                        ««
+                    </button>
+                    <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                    >
+                        ‹
+                    </button>
+                    
+                    {startPage > 1 && (
+                        <>
+                            <button
+                                onClick={() => handlePageChange(1)}
+                                className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100"
+                            >
+                                1
+                            </button>
+                            {startPage > 2 && <span className="text-gray-500">...</span>}
+                        </>
+                    )}
+
+                    {pageNumbers.map(pageNum => (
+                        <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`px-3 py-1 border rounded text-sm ${
+                                currentPage === pageNum
+                                    ? 'bg-red-500 text-white border-red-500'
+                                    : 'border-gray-300 hover:bg-gray-100'
+                            }`}
+                        >
+                            {pageNum}
+                        </button>
+                    ))}
+
+                    {endPage < totalPages && (
+                        <>
+                            {endPage < totalPages - 1 && <span className="text-gray-500">...</span>}
+                            <button
+                                onClick={() => handlePageChange(totalPages)}
+                                className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100"
+                            >
+                                {totalPages}
+                            </button>
+                        </>
+                    )}
+
+                    <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                    >
+                        ›
+                    </button>
+                    <button
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                    >
+                        »»
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     // Optimized file upload with chunked processing
@@ -722,6 +872,7 @@ const ExcelDataTransformer = () => {
         setBulkEditFileName('');
         setSelectedFileName('');
         setSortConfig({ key: null, direction: 'asc' });
+        setCurrentPage(1);
         clearAllFilters();
     };
 
@@ -1165,8 +1316,8 @@ const ExcelDataTransformer = () => {
                                         </label>
                                         <input
                                             type="range"
-                                            min="5"
-                                            max="20"
+                                            min="3"
+                                            max="15"
                                             value={maxBrandsInChart}
                                             onChange={(e) => setMaxBrandsInChart(parseInt(e.target.value))}
                                             className="w-full accent-red-500"
@@ -1181,9 +1332,9 @@ const ExcelDataTransformer = () => {
                                         </label>
                                         <input
                                             type="range"
-                                            min="0.1"
-                                            max="5"
-                                            step="0.1"
+                                            min="0.5"
+                                            max="10"
+                                            step="0.5"
                                             value={minPercentageThreshold}
                                             onChange={(e) => setMinPercentageThreshold(parseFloat(e.target.value))}
                                             className="w-full accent-red-500"
@@ -1378,6 +1529,7 @@ const ExcelDataTransformer = () => {
                             <li>• Interactive charts with filtering</li>
                             <li>• SOV, Ad Type & Media Type analysis</li>
                             <li>• Configurable column mapping</li>
+                            <li>• Pagination for large datasets</li>
                         </ul>
                     </div>
                 </div>
@@ -1546,41 +1698,45 @@ const ExcelDataTransformer = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {getSortedData().map((row, rowIndex) => (
-                                            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                                                {Object.keys(row).map((column) => {
-                                                    const actualRowIndex = transformedData.findIndex(originalRow =>
-                                                        JSON.stringify(originalRow) === JSON.stringify(row)
-                                                    );
-                                                    const isEditing = editingCell?.rowIndex === actualRowIndex && editingCell?.column === column;
-                                                    return (
-                                                        <td key={column} className="px-4 py-2 text-sm text-gray-700 border-b">
-                                                            {isEditing ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={row[column]}
-                                                                    onChange={(e) => handleCellEdit(actualRowIndex, column, e.target.value)}
-                                                                    onBlur={handleCellBlur}
-                                                                    onKeyPress={(e) => handleKeyPress(e, actualRowIndex, column)}
-                                                                    className="w-full px-1 py-0 border-0 outline-none bg-yellow-50 focus:bg-yellow-100"
-                                                                    autoFocus
-                                                                />
-                                                            ) : (
-                                                                <div
-                                                                    onClick={() => handleCellClick(actualRowIndex, column)}
-                                                                    className="cursor-pointer hover:bg-yellow-50 min-h-[20px] w-full"
-                                                                >
-                                                                    {row[column]}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ))}
+                                        {getPaginatedData().map((row, rowIndex) => {
+                                            const actualRowIndex = transformedData.findIndex(originalRow =>
+                                                JSON.stringify(originalRow) === JSON.stringify(row)
+                                            );
+                                            return (
+                                                <tr key={actualRowIndex} className={rowIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                                                    {Object.keys(row).map((column) => {
+                                                        const isEditing = editingCell?.rowIndex === actualRowIndex && editingCell?.column === column;
+                                                        return (
+                                                            <td key={column} className="px-4 py-2 text-sm text-gray-700 border-b">
+                                                                {isEditing ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={row[column]}
+                                                                        onChange={(e) => handleCellEdit(actualRowIndex, column, e.target.value)}
+                                                                        onBlur={handleCellBlur}
+                                                                        onKeyPress={(e) => handleKeyPress(e, actualRowIndex, column)}
+                                                                        className="w-full px-1 py-0 border-0 outline-none bg-yellow-50 focus:bg-yellow-100"
+                                                                        autoFocus
+                                                                    />
+                                                                ) : (
+                                                                    <div
+                                                                        onClick={() => handleCellClick(actualRowIndex, column)}
+                                                                        className="cursor-pointer hover:bg-yellow-50 min-h-[20px] w-full"
+                                                                    >
+                                                                        {row[column]}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            {renderPaginationControls()}
                         </div>
 
                         <div className="bg-white rounded-lg shadow border p-6">

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
 
@@ -19,6 +19,9 @@ const ExcelDataTransformer = () => {
     const [editingHeader, setEditingHeader] = useState(null);
     const [columnDisplayNames, setColumnDisplayNames] = useState({});
     const [showColumnConfig, setShowColumnConfig] = useState(false);
+    // New states for chart optimization
+    const [maxBrandsInChart, setMaxBrandsInChart] = useState(10);
+    const [minPercentageThreshold, setMinPercentageThreshold] = useState(1);
     const [columnConfig, setColumnConfig] = useState({
         includeBrand: true,
         includeMediaType: true,
@@ -54,18 +57,19 @@ const ExcelDataTransformer = () => {
     ];
 
     const COLOR_SCHEMES = {
-        'new-heritage-red': ['#FF3534', '#E62E2A', '#CC2620', '#B31F16', '#99170C', '#801002', '#FF5854', '#FF7874'],
-        'sunburst': ['#FFB84E', '#E6A344', '#CC8E3A', '#B37930', '#996426', '#804F1C', '#FFCC6E', '#FFDD8E'],
-        'flamingo': ['#F585DA', '#DC76C1', '#C267A8', '#A9588F', '#8F4976', '#763A5D', '#F799E4', '#F9ADEE'],
-        'lake': ['#3197EE', '#2C88D5', '#2679BC', '#216AA3', '#1B5B8A', '#164C71', '#51A7F1', '#71B7F4'],
-        'mint': ['#06B8A2', '#05A692', '#049482', '#038272', '#027062', '#015E52', '#26C8B2', '#46D8C2'],
-        'orchid': ['#806FEA', '#7363D1', '#6657B8', '#594B9F', '#4C3F86', '#3F336D', '#9485ED', '#A89BF0']
+        'new-heritage-red': ['#FF3534', '#E62E2A', '#CC2620', '#B31F16', '#99170C', '#801002', '#FF5854', '#FF7874', '#FF9999', '#FFBBBB'],
+        'sunburst': ['#FFB84E', '#E6A344', '#CC8E3A', '#B37930', '#996426', '#804F1C', '#FFCC6E', '#FFDD8E', '#FFEE9E', '#FFFFAE'],
+        'flamingo': ['#F585DA', '#DC76C1', '#C267A8', '#A9588F', '#8F4976', '#763A5D', '#F799E4', '#F9ADEE', '#FBBDF8', '#FDCDFC'],
+        'lake': ['#3197EE', '#2C88D5', '#2679BC', '#216AA3', '#1B5B8A', '#164C71', '#51A7F1', '#71B7F4', '#91C7F7', '#B1D7FA'],
+        'mint': ['#06B8A2', '#05A692', '#049482', '#038272', '#027062', '#015E52', '#26C8B2', '#46D8C2', '#66E8D2', '#86F8E2'],
+        'orchid': ['#806FEA', '#7363D1', '#6657B8', '#594B9F', '#4C3F86', '#3F336D', '#9485ED', '#A89BF0', '#BCB1F3', '#D0C7F6']
     };
 
-    // Sleep function for performance optimization
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    // Optimized sleep function
+    const sleep = useCallback((ms) => new Promise(resolve => setTimeout(resolve, ms)), []);
 
-    const getFilterOptions = () => {
+    // Memoized filter options for better performance
+    const filterOptions = useMemo(() => {
         const fileNames = [...new Set(transformedData.map(row => row['File Name']))].filter(Boolean);
         const brands = [...new Set(transformedData.map(row => row['Brand Name']))].filter(Boolean);
         const years = [...new Set(transformedData.map(row => row['Year']))].filter(Boolean).sort();
@@ -78,9 +82,10 @@ const ExcelDataTransformer = () => {
         const months = [...new Set(transformedData.map(row => row['Month']))].filter(Boolean);
 
         return { fileNames, brands, years, adTypes, mediaTypes, months };
-    };
+    }, [transformedData]);
 
-    const getFilteredChartData = () => {
+    // Memoized filtered chart data
+    const filteredChartData = useMemo(() => {
         const hasFilters = Object.values(chartFilters).some(filterArray => filterArray.length > 0);
         if (!hasFilters) {
             return transformedData;
@@ -98,13 +103,13 @@ const ExcelDataTransformer = () => {
                 (months.length === 0 || months.includes(row['Month']))
             );
         });
-    };
+    }, [transformedData, chartFilters]);
 
-    const getImpressionChartData = () => {
-        const filteredData = getFilteredChartData();
+    // Optimized impression chart data with brand limiting and grouping
+    const impressionChartData = useMemo(() => {
         const brandTotals = {};
 
-        filteredData.forEach(row => {
+        filteredChartData.forEach(row => {
             const brand = row['Brand Name'] || 'Unknown';
             const impressionStr = row['Impression (ad contact)']?.toString().replace(/,/g, '') || '0';
             const impression = parseFloat(impressionStr);
@@ -114,7 +119,7 @@ const ExcelDataTransformer = () => {
 
         const total = Object.values(brandTotals).reduce((sum, value) => sum + (isNaN(value) ? 0 : value), 0);
 
-        return Object.entries(brandTotals)
+        const allBrands = Object.entries(brandTotals)
             .map(([brand, value]) => {
                 const validValue = isNaN(value) ? 0 : value;
                 const percentage = total > 0 ? ((validValue / total) * 100) : 0;
@@ -123,24 +128,51 @@ const ExcelDataTransformer = () => {
                 return {
                     name: brand,
                     value: validValue,
-                    percentage: validPercentage.toFixed(1)
+                    percentage: validPercentage
                 };
             })
-            .filter(item => item.value > 0)
+            .filter(item => item.value > 0 && item.percentage >= minPercentageThreshold)
             .sort((a, b) => b.value - a.value);
-    };
+
+        // Group smaller brands into "Others" for better visualization
+        if (allBrands.length > maxBrandsInChart) {
+            const topBrands = allBrands.slice(0, maxBrandsInChart - 1);
+            const otherBrands = allBrands.slice(maxBrandsInChart - 1);
+            
+            const othersValue = otherBrands.reduce((sum, item) => sum + item.value, 0);
+            const othersPercentage = total > 0 ? ((othersValue / total) * 100) : 0;
+            
+            if (othersValue > 0) {
+                topBrands.push({
+                    name: `Others (${otherBrands.length} brands)`,
+                    value: othersValue,
+                    percentage: Number(othersPercentage.toFixed(1)),
+                    isOthers: true,
+                    otherBrands: otherBrands.map(b => b.name)
+                });
+            }
+            
+            return topBrands.map(item => ({
+                ...item,
+                percentage: Number(item.percentage.toFixed(1))
+            }));
+        }
+
+        return allBrands.map(item => ({
+            ...item,
+            percentage: Number(item.percentage.toFixed(1))
+        }));
+    }, [filteredChartData, maxBrandsInChart, minPercentageThreshold]);
 
     const getAdTypeChartData = () => {
-        const filteredData = getFilteredChartData();
-        
         // Check if Ad Type column exists
-        if (filteredData.length === 0 || !filteredData[0].hasOwnProperty('Ad Type')) {
+        if (filteredChartData.length === 0 || !filteredChartData[0].hasOwnProperty('Ad Type')) {
             return [];
         }
 
         const brandAdTypes = {};
 
-        filteredData.forEach(row => {
+        filteredChartData.forEach(row => {
             const brand = row['Brand Name'] || 'Unknown';
             const adType = row['Ad Type']?.toString().trim() || 'Unknown';
             const impressionStr = row['Impression (ad contact)']?.toString().replace(/,/g, '') || '0';
@@ -173,16 +205,14 @@ const ExcelDataTransformer = () => {
     };
 
     const getMediaTypeChartData = () => {
-        const filteredData = getFilteredChartData();
-        
         // Check if Media Type column exists
-        if (filteredData.length === 0 || !filteredData[0].hasOwnProperty('Media Type')) {
+        if (filteredChartData.length === 0 || !filteredChartData[0].hasOwnProperty('Media Type')) {
             return [];
         }
 
         const brandMediaTypes = {};
 
-        filteredData.forEach(row => {
+        filteredChartData.forEach(row => {
             const brand = row['Brand Name'] || 'Unknown';
             const mediaType = row['Media Type']?.toString().trim() || 'Unknown';
             const impressionStr = row['Impression (ad contact)']?.toString().replace(/,/g, '') || '0';
@@ -275,7 +305,7 @@ const ExcelDataTransformer = () => {
 
             switch (activeChart) {
                 case 'impression':
-                    chartData = getImpressionChartData();
+                    chartData = impressionChartData;
                     title = 'Share of Voice (SOV) - Impression Distribution';
                     break;
                 case 'adtype':
@@ -327,6 +357,41 @@ const ExcelDataTransformer = () => {
         } catch (error) {
             console.error('Failed to copy chart data:', error);
             alert('Failed to copy chart data. Please try again.');
+        }
+    };
+
+    const downloadChart = async () => {
+        try {
+            // Find the SVG element (Recharts renders as SVG)
+            const svgElement = document.querySelector('.recharts-wrapper svg');
+            if (!svgElement) {
+                alert('Chart not found. Please make sure a chart is displayed.');
+                return;
+            }
+
+            // Clone the SVG to avoid modifying the original
+            const svgClone = svgElement.cloneNode(true);
+            
+            // Set white background
+            svgClone.style.backgroundColor = 'white';
+            
+            // Get SVG data
+            const svgData = new XMLSerializer().serializeToString(svgClone);
+            const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+            
+            // Create download link
+            const url = URL.createObjectURL(svgBlob);
+            const link = document.createElement('a');
+            link.download = `${activeChart}-chart-${new Date().toISOString().split('T')[0]}.svg`;
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+        } catch (error) {
+            console.error('Failed to download chart:', error);
+            alert('For chart download: Right-click on the chart and select "Save image as..." or use "Copy Data" to get data for PowerPoint charts.');
         }
     };
 
@@ -393,6 +458,7 @@ const ExcelDataTransformer = () => {
             <span className="text-blue-600 ml-1">↓</span>;
     };
 
+    // Optimized file upload with chunked processing
     const handleFileUpload = async (event) => {
         const files = Array.from(event.target.files);
         if (files.length === 0) return;
@@ -431,7 +497,8 @@ const ExcelDataTransformer = () => {
                 setProcessingProgress(Math.min(baseProgress + (fileProgressRange * 0.8), 100));
                 await sleep(50);
 
-                const processedData = await processDataAsync(jsonData, file.name);
+                // Use optimized processing for large files
+                const processedData = await processDataAsyncOptimized(jsonData, file.name);
 
                 // Add data immediately as it's processed
                 setTransformedData(prevData => [...prevData, ...processedData.transformed]);
@@ -470,7 +537,8 @@ const ExcelDataTransformer = () => {
         }
     };
 
-    const processData = (data, fileName) => {
+    // Optimized data processing with better performance for large files
+    const processDataAsyncOptimized = async (data, fileName) => {
         let processedData = data.slice(18);
 
         processedData = processedData.filter(row => {
@@ -496,7 +564,8 @@ const ExcelDataTransformer = () => {
             }
         }
 
-        const transformedData = transformToLongFormat(processedData, fileName);
+        // Use optimized transformation for large datasets
+        const transformedData = await transformToLongFormatOptimized(processedData, fileName);
 
         return {
             original: processedData,
@@ -504,43 +573,8 @@ const ExcelDataTransformer = () => {
         };
     };
 
-    // Async version for better performance with large files
-    const processDataAsync = async (data, fileName) => {
-        let processedData = data.slice(18);
-
-        processedData = processedData.filter(row => {
-            const rowString = row.join(' ').toLowerCase();
-            return !rowString.includes('all ad types') &&
-                !rowString.includes('all media types') &&
-                !rowString.includes('all brands') &&
-                !rowString.includes('all ');
-        });
-
-        if (processedData.length > 0) {
-            const headerRow = processedData[0];
-            const sumColumnIndex = headerRow.findIndex(cell =>
-                cell && cell.toString().toLowerCase().includes('sum')
-            );
-
-            if (sumColumnIndex !== -1) {
-                processedData = processedData.map(row => {
-                    const newRow = [...row];
-                    newRow.splice(sumColumnIndex, 1);
-                    return newRow;
-                });
-            }
-        }
-
-        // For large datasets, process in chunks
-        const transformedData = await transformToLongFormatAsync(processedData, fileName);
-
-        return {
-            original: processedData,
-            transformed: transformedData
-        };
-    };
-
-    const transformToLongFormat = (data, fileName) => {
+    // Optimized transformation with better chunking and performance
+    const transformToLongFormatOptimized = async (data, fileName) => {
         if (data.length < 2) return [];
 
         const headerRow = data[0];
@@ -579,91 +613,10 @@ const ExcelDataTransformer = () => {
             currentIndex++;
         }
 
-        dataRows.forEach(row => {
-            // Check if we have brand data (required for processing)
-            const hasBrandData = columnConfig.includeBrand ? (row[columnMapping.brand] && row[columnMapping.brand] !== '') : true;
-            
-            if (hasBrandData) {
-                monthColumns.forEach(monthCol => {
-                    const impressionValue = row[monthCol.index];
-                    if (impressionValue && impressionValue !== '' && impressionValue !== '-') {
-                        // Create row in the correct order: file name, brand name, media type, ad type, year, month, impression
-                        const transformedRow = {};
-
-                        // Always start with File Name
-                        transformedRow['File Name'] = fileName;
-
-                        // Add Brand Name only if included
-                        if (columnConfig.includeBrand) {
-                            transformedRow['Brand Name'] = row[columnMapping.brand] || '';
-                        }
-
-                        // Add Media Type only if included
-                        if (columnConfig.includeMediaType) {
-                            transformedRow['Media Type'] = row[columnMapping.mediaType] || '';
-                        }
-
-                        // Add Ad Type only if included
-                        if (columnConfig.includeAdType) {
-                            transformedRow['Ad Type'] = row[columnMapping.adType] || '';
-                        }
-
-                        // Add Year, Month, and Impression
-                        transformedRow['Year'] = monthCol.year;
-                        transformedRow['Month'] = monthCol.month;
-                        transformedRow['Impression (ad contact)'] = impressionValue;
-
-                        transformedRows.push(transformedRow);
-                    }
-                });
-            }
-        });
-
-        return transformedRows;
-    };
-
-    // Async version for better performance
-    const transformToLongFormatAsync = async (data, fileName) => {
-        if (data.length < 2) return [];
-
-        const headerRow = data[0];
-        const dataRows = data.slice(1);
-
-        const monthColumns = [];
-        headerRow.forEach((header, index) => {
-            if (header && header.toString().match(/\d{4}\s+\w+/)) {
-                monthColumns.push({
-                    index: index,
-                    header: header.toString(),
-                    year: header.toString().split(' ')[0],
-                    month: header.toString().split(' ')[1]
-                });
-            }
-        });
-
-        const transformedRows = [];
-
-        // Determine column indices based on configuration
-        let currentIndex = 0;
-        const columnMapping = {};
-
-        if (columnConfig.includeBrand) {
-            columnMapping.brand = currentIndex;
-            currentIndex++;
-        }
-
-        if (columnConfig.includeMediaType) {
-            columnMapping.mediaType = currentIndex;
-            currentIndex++;
-        }
-
-        if (columnConfig.includeAdType) {
-            columnMapping.adType = currentIndex;
-            currentIndex++;
-        }
-
-        // Process in chunks for better performance
-        const chunkSize = 100;
+        // Process in larger chunks for better performance, with more frequent pauses for very large files
+        const chunkSize = dataRows.length > 10000 ? 50 : 200;
+        const pauseInterval = dataRows.length > 10000 ? 5 : 10;
+        
         for (let i = 0; i < dataRows.length; i += chunkSize) {
             const chunk = dataRows.slice(i, i + chunkSize);
             
@@ -707,9 +660,9 @@ const ExcelDataTransformer = () => {
                 }
             });
 
-            // Allow UI to update every chunk
-            if (i % (chunkSize * 5) === 0) {
-                await sleep(10);
+            // More frequent pauses for large files to prevent browser freezing
+            if (i % (chunkSize * pauseInterval) === 0) {
+                await sleep(dataRows.length > 10000 ? 20 : 10);
             }
         }
 
@@ -831,8 +784,7 @@ const ExcelDataTransformer = () => {
 
         switch (activeChart) {
             case 'impression':
-                const impressionData = getImpressionChartData();
-                if (impressionData.length === 0) {
+                if (impressionChartData.length === 0) {
                     return (
                         <div className="h-96 flex items-center justify-center">
                             <p className="text-gray-500">No data available for the current filters</p>
@@ -841,36 +793,59 @@ const ExcelDataTransformer = () => {
                 }
                 return (
                     <div className="flex h-96">
-                        <div className="flex-1">
+                        <div className="flex-1" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))' }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <RechartsPieChart>
                                     <Pie
-                                        data={impressionData}
+                                        data={impressionChartData}
                                         cx="50%"
                                         cy="50%"
                                         outerRadius={120}
                                         fill="#8884d8"
                                         dataKey="value"
-                                        label={({ name, percentage }) => `${percentage}%`}
+                                        label={({ name, percentage }) => percentage >= 3 ? `${name}: ${percentage}%` : ''}
+                                        labelLine={false}
+                                        stroke="#fff"
+                                        strokeWidth={2}
                                     >
-                                        {impressionData.map((entry, index) => (
+                                        {impressionChartData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={currentColors[index % currentColors.length]} />
                                         ))}
                                     </Pie>
-                                    <Tooltip formatter={(value) => [value.toLocaleString(), 'Impressions']} />
+                                    <Tooltip 
+                                        formatter={(value, name, props) => {
+                                            const { payload } = props;
+                                            if (payload.isOthers) {
+                                                return [
+                                                    value.toLocaleString(),
+                                                    payload.name,
+                                                    `Includes: ${payload.otherBrands.slice(0, 5).join(', ')}${payload.otherBrands.length > 5 ? '...' : ''}`
+                                                ];
+                                            }
+                                            return [value.toLocaleString(), payload.name];
+                                        }}
+                                    />
                                 </RechartsPieChart>
                             </ResponsiveContainer>
                         </div>
-                        <div className="w-64 p-4 bg-gray-50 rounded border">
-                            <h4 className="font-semibold mb-3">Brands</h4>
+                        <div className="w-64 p-4 bg-gray-50 rounded border max-h-96 overflow-y-auto">
+                            <h4 className="font-semibold mb-3">Brands ({impressionChartData.length})</h4>
                             <div className="space-y-2">
-                                {impressionData.map((entry, index) => (
-                                    <div key={entry.name} className="flex items-center">
+                                {impressionChartData.map((entry, index) => (
+                                    <div key={entry.name} className="flex items-center text-sm">
                                         <div
-                                            className="w-4 h-4 rounded mr-2"
+                                            className="w-4 h-4 rounded mr-2 flex-shrink-0"
                                             style={{ backgroundColor: currentColors[index % currentColors.length] }}
                                         ></div>
-                                        <span className="text-sm">{entry.name}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="truncate font-medium">{entry.name}</div>
+                                            <div className="text-xs text-gray-600">{entry.percentage}%</div>
+                                            {entry.isOthers && (
+                                                <div className="text-xs text-gray-500" title={entry.otherBrands.join(', ')}>
+                                                    {entry.otherBrands.length} brands
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -896,15 +871,14 @@ const ExcelDataTransformer = () => {
                 }
                 
                 if (adTypeData.length === 0) {
-                    const filteredData = getFilteredChartData();
-                    const uniqueAdTypes = [...new Set(filteredData.map(r => r['Ad Type']))].filter(Boolean);
+                    const uniqueAdTypes = [...new Set(filteredChartData.map(r => r['Ad Type']))].filter(Boolean);
 
                     return (
                         <div className="h-96 flex items-center justify-center">
                             <div className="text-center p-4 bg-yellow-50 rounded border">
                                 <p className="text-gray-700 font-medium mb-2">No ad type chart data available</p>
                                 <div className="text-sm text-gray-600 space-y-1">
-                                    <p>Filtered rows: {filteredData.length}</p>
+                                    <p>Filtered rows: {filteredChartData.length}</p>
                                     <p>Unique ad types found: {uniqueAdTypes.join(', ') || 'None'}</p>
                                 </div>
                             </div>
@@ -972,15 +946,14 @@ const ExcelDataTransformer = () => {
                 }
                 
                 if (mediaTypeData.length === 0) {
-                    const filteredData = getFilteredChartData();
-                    const uniqueMediaTypes = [...new Set(filteredData.map(r => r['Media Type']))].filter(Boolean);
+                    const uniqueMediaTypes = [...new Set(filteredChartData.map(r => r['Media Type']))].filter(Boolean);
 
                     return (
                         <div className="h-96 flex items-center justify-center">
                             <div className="text-center p-4 bg-yellow-50 rounded border">
                                 <p className="text-gray-700 font-medium mb-2">No media type chart data available</p>
                                 <div className="text-sm text-gray-600 space-y-1">
-                                    <p>Filtered rows: {filteredData.length}</p>
+                                    <p>Filtered rows: {filteredChartData.length}</p>
                                     <p>Unique media types found: {uniqueMediaTypes.join(', ') || 'None'}</p>
                                 </div>
                             </div>
@@ -1159,9 +1132,8 @@ const ExcelDataTransformer = () => {
         );
     };
 
+    // New chart optimization controls
     const renderFilters = () => {
-        const options = getFilterOptions();
-
         return (
             <div className="mb-4">
                 <button
@@ -1172,7 +1144,7 @@ const ExcelDataTransformer = () => {
                         <span className="mr-2">▼</span>
                         <span className="font-medium">Chart Filters</span>
                         <span className="ml-2 text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
-                            {getFilteredChartData().length} rows
+                            {filteredChartData.length} rows
                         </span>
                     </div>
                     <div className={`transform transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`}>
@@ -1182,8 +1154,48 @@ const ExcelDataTransformer = () => {
                     </div>
                 </button>
 
-                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showFilters ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`}>
-                    <div className="bg-gray-50 p-4 rounded-lg mt-2 border">
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showFilters ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className="bg-gray-50 p-4 rounded-lg mt-2 border max-h-96 overflow-y-auto">
+                        {activeChart === 'impression' && (
+                            <div className="bg-blue-50 p-4 rounded-lg border mb-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-2">
+                                            Max brands in pie chart: {maxBrandsInChart}
+                                        </label>
+                                        <input
+                                            type="range"
+                                            min="5"
+                                            max="20"
+                                            value={maxBrandsInChart}
+                                            onChange={(e) => setMaxBrandsInChart(parseInt(e.target.value))}
+                                            className="w-full accent-red-500"
+                                        />
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            Smaller brands will be grouped into "Others"
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-gray-600 mb-2">
+                                            Min percentage threshold: {minPercentageThreshold}%
+                                        </label>
+                                        <input
+                                            type="range"
+                                            min="0.1"
+                                            max="5"
+                                            step="0.1"
+                                            value={minPercentageThreshold}
+                                            onChange={(e) => setMinPercentageThreshold(parseFloat(e.target.value))}
+                                            className="w-full accent-red-500"
+                                        />
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            Hide brands below this percentage
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex justify-end items-center mb-3">
                             <div className="flex space-x-2">
                                 <button
@@ -1203,7 +1215,7 @@ const ExcelDataTransformer = () => {
                         </div>
 
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                            {Object.entries(options).map(([filterType, values]) => (
+                            {Object.entries(filterOptions).map(([filterType, values]) => (
                                 <div key={filterType} className="space-y-2">
                                     <label className="font-medium text-sm text-gray-700 capitalize">
                                         {filterType.replace(/([A-Z])/g, ' $1').trim()} ({values.length})
@@ -1360,9 +1372,9 @@ const ExcelDataTransformer = () => {
                         <p className="mb-2 font-medium">Features:</p>
                         <ul className="space-y-1">
                             <li>• Data processing & transformation</li>
-                            <li>• Smart column sorting</li>
+                            <li>• Skips first 18 rows & summary rows</li>
+                            <li>• Filters empty/invalid impression data</li>
                             <li>• Editable cells & column names</li>
-                            <li>• Bulk editing capabilities</li>
                             <li>• Interactive charts with filtering</li>
                             <li>• SOV, Ad Type & Media Type analysis</li>
                             <li>• Configurable column mapping</li>
@@ -1597,6 +1609,13 @@ const ExcelDataTransformer = () => {
                                         <span className="mr-1">⧉</span>
                                         Copy Data
                                     </button>
+                                    <button
+                                        onClick={downloadChart}
+                                        className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-all duration-200 flex items-center shadow-md"
+                                    >
+                                        <span className="mr-1">⬇</span>
+                                        Download Chart
+                                    </button>
                                 </div>
                             </div>
 
@@ -1641,7 +1660,7 @@ const ExcelDataTransformer = () => {
 
                             {renderFilters()}
 
-                            <div>
+                            <div className="chart-container">
                                 <h3 className="text-lg font-semibold mb-4">
                                     {activeChart === 'impression' && 'Share of Voice (SOV) - Impression Distribution'}
                                     {activeChart === 'adtype' && 'Ad Type Distribution by Brand (Based on Impressions)'}
