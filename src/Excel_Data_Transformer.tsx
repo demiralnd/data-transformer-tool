@@ -19,9 +19,19 @@ const ExcelDataTransformer = () => {
     const [editingHeader, setEditingHeader] = useState(null);
     const [columnDisplayNames, setColumnDisplayNames] = useState({});
     const [showColumnConfig, setShowColumnConfig] = useState(false);
-    // New states for chart optimization
-    const [maxBrandsInChart, setMaxBrandsInChart] = useState(10);
-    const [minPercentageThreshold, setMinPercentageThreshold] = useState(1);
+    
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(50);
+    
+    // Updated default values for chart optimization
+    const [maxBrandsInChart, setMaxBrandsInChart] = useState(8); // Changed from 5 to 8
+    const [minPercentageThreshold, setMinPercentageThreshold] = useState(2); // Changed from 5 to 2
+    
+    // Threshold settings for ad type and media type charts
+    const [maxBrandsInAdTypeChart, setMaxBrandsInAdTypeChart] = useState(8);
+    const [maxBrandsInMediaTypeChart, setMaxBrandsInMediaTypeChart] = useState(8);
+    
     const [columnConfig, setColumnConfig] = useState({
         includeBrand: true,
         includeMediaType: true,
@@ -50,6 +60,11 @@ const ExcelDataTransformer = () => {
             }
         }
     }, [transformedData, activeChart]);
+
+    // Reset pagination when data changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [transformedData, sortConfig]);
 
     const monthOrder = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -191,7 +206,7 @@ const ExcelDataTransformer = () => {
                 const total = Object.values(adTypes).reduce((sum, val) => sum + val, 0);
                 if (total === 0) return null;
 
-                const percentages = { name: brand };
+                const percentages = { name: brand, total: total };
                 Object.entries(adTypes).forEach(([adType, value]) => {
                     percentages[adType] = Number(((value / total) * 100).toFixed(1));
                     percentages[`${adType}Value`] = value;
@@ -199,9 +214,43 @@ const ExcelDataTransformer = () => {
 
                 return percentages;
             })
-            .filter(item => item !== null);
+            .filter(item => item !== null)
+            .sort((a, b) => b.total - a.total);
 
-        return result;
+        // Apply threshold filtering similar to impression chart
+        if (result.length > maxBrandsInAdTypeChart) {
+            const topBrands = result.slice(0, maxBrandsInAdTypeChart - 1);
+            const otherBrands = result.slice(maxBrandsInAdTypeChart - 1);
+            
+            if (otherBrands.length > 0) {
+                // Aggregate "Others" data
+                const othersData = { name: `Others (${otherBrands.length} brands)`, total: 0, isOthers: true, otherBrands: otherBrands.map(b => b.name) };
+                const allAdTypes = new Set();
+                
+                // Collect all ad types
+                [...topBrands, ...otherBrands].forEach(brand => {
+                    Object.keys(brand).forEach(key => {
+                        if (key !== 'name' && key !== 'total' && key !== 'isOthers' && key !== 'otherBrands' && !key.includes('Value')) {
+                            allAdTypes.add(key);
+                        }
+                    });
+                });
+
+                // Calculate aggregated values for others
+                allAdTypes.forEach(adType => {
+                    const totalValue = otherBrands.reduce((sum, brand) => sum + (brand[`${adType}Value`] || 0), 0);
+                    const totalImpressions = otherBrands.reduce((sum, brand) => sum + brand.total, 0);
+                    
+                    othersData[adType] = totalImpressions > 0 ? Number(((totalValue / totalImpressions) * 100).toFixed(1)) : 0;
+                    othersData[`${adType}Value`] = totalValue;
+                    othersData.total += totalValue;
+                });
+                
+                return [...topBrands.map(item => ({ ...item, total: undefined })), { ...othersData, total: undefined }];
+            }
+        }
+
+        return result.map(item => ({ ...item, total: undefined }));
     };
 
     const getMediaTypeChartData = () => {
@@ -231,7 +280,7 @@ const ExcelDataTransformer = () => {
                 const total = Object.values(mediaTypes).reduce((sum, val) => sum + val, 0);
                 if (total === 0) return null;
 
-                const percentages = { name: brand };
+                const percentages = { name: brand, total: total };
                 Object.entries(mediaTypes).forEach(([mediaType, value]) => {
                     percentages[mediaType] = Number(((value / total) * 100).toFixed(1));
                     percentages[`${mediaType}Value`] = value;
@@ -239,9 +288,43 @@ const ExcelDataTransformer = () => {
 
                 return percentages;
             })
-            .filter(item => item !== null);
+            .filter(item => item !== null)
+            .sort((a, b) => b.total - a.total);
 
-        return result;
+        // Apply threshold filtering similar to impression chart
+        if (result.length > maxBrandsInMediaTypeChart) {
+            const topBrands = result.slice(0, maxBrandsInMediaTypeChart - 1);
+            const otherBrands = result.slice(maxBrandsInMediaTypeChart - 1);
+            
+            if (otherBrands.length > 0) {
+                // Aggregate "Others" data
+                const othersData = { name: `Others (${otherBrands.length} brands)`, total: 0, isOthers: true, otherBrands: otherBrands.map(b => b.name) };
+                const allMediaTypes = new Set();
+                
+                // Collect all media types
+                [...topBrands, ...otherBrands].forEach(brand => {
+                    Object.keys(brand).forEach(key => {
+                        if (key !== 'name' && key !== 'total' && key !== 'isOthers' && key !== 'otherBrands' && !key.includes('Value')) {
+                            allMediaTypes.add(key);
+                        }
+                    });
+                });
+
+                // Calculate aggregated values for others
+                allMediaTypes.forEach(mediaType => {
+                    const totalValue = otherBrands.reduce((sum, brand) => sum + (brand[`${mediaType}Value`] || 0), 0);
+                    const totalImpressions = otherBrands.reduce((sum, brand) => sum + brand.total, 0);
+                    
+                    othersData[mediaType] = totalImpressions > 0 ? Number(((totalValue / totalImpressions) * 100).toFixed(1)) : 0;
+                    othersData[`${mediaType}Value`] = totalValue;
+                    othersData.total += totalValue;
+                });
+                
+                return [...topBrands.map(item => ({ ...item, total: undefined })), { ...othersData, total: undefined }];
+            }
+        }
+
+        return result.map(item => ({ ...item, total: undefined }));
     };
 
     const handleFilterChange = (filterType, value, checked) => {
@@ -449,6 +532,28 @@ const ExcelDataTransformer = () => {
         return sortedData;
     };
 
+    // Pagination logic
+    const getPaginatedData = () => {
+        const sortedData = getSortedData();
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = startIndex + rowsPerPage;
+        return sortedData.slice(startIndex, endIndex);
+    };
+
+    const getTotalPages = () => {
+        const sortedData = getSortedData();
+        return Math.ceil(sortedData.length / rowsPerPage);
+    };
+
+    const handlePageChange = (newPage) => {
+        setCurrentPage(Math.max(1, Math.min(newPage, getTotalPages())));
+    };
+
+    const handleRowsPerPageChange = (newRowsPerPage) => {
+        setRowsPerPage(newRowsPerPage);
+        setCurrentPage(1); // Reset to first page
+    };
+
     const getSortIcon = (columnKey) => {
         if (sortConfig.key !== columnKey) {
             return <span className="text-gray-400 ml-1">↕</span>;
@@ -456,6 +561,124 @@ const ExcelDataTransformer = () => {
         return sortConfig.direction === 'asc' ?
             <span className="text-blue-600 ml-1">↑</span> :
             <span className="text-blue-600 ml-1">↓</span>;
+    };
+
+    // Pagination controls component
+    const renderPaginationControls = () => {
+        const totalPages = getTotalPages();
+        const sortedData = getSortedData();
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = Math.min(startIndex + rowsPerPage, sortedData.length);
+
+        if (totalPages <= 1) return null;
+
+        const pageNumbers = [];
+        const maxVisiblePages = 5;
+        
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        
+        if (endPage - startPage < maxVisiblePages - 1) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            pageNumbers.push(i);
+        }
+
+        return (
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
+                <div className="flex items-center space-x-4">
+                    <div className="text-sm text-gray-700">
+                        Showing {startIndex + 1} to {endIndex} of {sortedData.length} entries
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-700">Rows per page:</span>
+                        <select
+                            value={rowsPerPage}
+                            onChange={(e) => handleRowsPerPageChange(parseInt(e.target.value))}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                        >
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                            <option value={250}>250</option>
+                            <option value={500}>500</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                    <button
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                    >
+                        ««
+                    </button>
+                    <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                    >
+                        ‹
+                    </button>
+                    
+                    {startPage > 1 && (
+                        <>
+                            <button
+                                onClick={() => handlePageChange(1)}
+                                className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100"
+                            >
+                                1
+                            </button>
+                            {startPage > 2 && <span className="text-gray-500">...</span>}
+                        </>
+                    )}
+
+                    {pageNumbers.map(pageNum => (
+                        <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`px-3 py-1 border rounded text-sm ${
+                                currentPage === pageNum
+                                    ? 'bg-red-500 text-white border-red-500'
+                                    : 'border-gray-300 hover:bg-gray-100'
+                            }`}
+                        >
+                            {pageNum}
+                        </button>
+                    ))}
+
+                    {endPage < totalPages && (
+                        <>
+                            {endPage < totalPages - 1 && <span className="text-gray-500">...</span>}
+                            <button
+                                onClick={() => handlePageChange(totalPages)}
+                                className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100"
+                            >
+                                {totalPages}
+                            </button>
+                        </>
+                    )}
+
+                    <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                    >
+                        ›
+                    </button>
+                    <button
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                    >
+                        »»
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     // Optimized file upload with chunked processing
@@ -722,6 +945,7 @@ const ExcelDataTransformer = () => {
         setBulkEditFileName('');
         setSelectedFileName('');
         setSortConfig({ key: null, direction: 'asc' });
+        setCurrentPage(1);
         clearAllFilters();
     };
 
@@ -887,7 +1111,7 @@ const ExcelDataTransformer = () => {
                 }
 
                 const adTypeKeys = adTypeData.length > 0 ?
-                    Object.keys(adTypeData[0]).filter(key => key !== 'name' && !key.includes('Value')) : [];
+                    Object.keys(adTypeData[0]).filter(key => key !== 'name' && !key.includes('Value') && key !== 'isOthers' && key !== 'otherBrands') : [];
 
                 return (
                     <div className="h-96">
@@ -910,7 +1134,13 @@ const ExcelDataTransformer = () => {
                                     tick={{ fontSize: 12 }}
                                 />
                                 <Tooltip
-                                    formatter={(value, name) => [`${value}% (${adTypeData.find(d => d.name === name)?.[`${name}Value`] || 'N/A'} impressions)`, name]}
+                                    formatter={(value, name, props) => {
+                                        const { payload } = props;
+                                        if (payload.isOthers) {
+                                            return [`${value}% (grouped from ${payload.otherBrands.join(', ')})`, name];
+                                        }
+                                        return [`${value}% (${adTypeData.find(d => d.name === payload.name)?.[`${name}Value`] || 'N/A'} impressions)`, name];
+                                    }}
                                     labelFormatter={(label) => `Brand: ${label}`}
                                 />
                                 <Legend />
@@ -962,7 +1192,7 @@ const ExcelDataTransformer = () => {
                 }
 
                 const mediaTypeKeys = mediaTypeData.length > 0 ?
-                    Object.keys(mediaTypeData[0]).filter(key => key !== 'name' && !key.includes('Value')) : [];
+                    Object.keys(mediaTypeData[0]).filter(key => key !== 'name' && !key.includes('Value') && key !== 'isOthers' && key !== 'otherBrands') : [];
 
                 return (
                     <div className="h-96">
@@ -985,7 +1215,13 @@ const ExcelDataTransformer = () => {
                                     tick={{ fontSize: 12 }}
                                 />
                                 <Tooltip
-                                    formatter={(value, name) => [`${value}% (${mediaTypeData.find(d => d.name === name)?.[`${name}Value`] || 'N/A'} impressions)`, name]}
+                                    formatter={(value, name, props) => {
+                                        const { payload } = props;
+                                        if (payload.isOthers) {
+                                            return [`${value}% (grouped from ${payload.otherBrands.join(', ')})`, name];
+                                        }
+                                        return [`${value}% (${mediaTypeData.find(d => d.name === payload.name)?.[`${name}Value`] || 'N/A'} impressions)`, name];
+                                    }}
                                     labelFormatter={(label) => `Brand: ${label}`}
                                 />
                                 <Legend />
@@ -1165,8 +1401,8 @@ const ExcelDataTransformer = () => {
                                         </label>
                                         <input
                                             type="range"
-                                            min="5"
-                                            max="20"
+                                            min="3"
+                                            max="15"
                                             value={maxBrandsInChart}
                                             onChange={(e) => setMaxBrandsInChart(parseInt(e.target.value))}
                                             className="w-full accent-red-500"
@@ -1181,9 +1417,9 @@ const ExcelDataTransformer = () => {
                                         </label>
                                         <input
                                             type="range"
-                                            min="0.1"
-                                            max="5"
-                                            step="0.1"
+                                            min="0.5"
+                                            max="10"
+                                            step="0.5"
                                             value={minPercentageThreshold}
                                             onChange={(e) => setMinPercentageThreshold(parseFloat(e.target.value))}
                                             className="w-full accent-red-500"
@@ -1191,6 +1427,48 @@ const ExcelDataTransformer = () => {
                                         <div className="text-xs text-gray-500 mt-1">
                                             Hide brands below this percentage
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeChart === 'adtype' && transformedData.length > 0 && transformedData[0].hasOwnProperty('Ad Type') && (
+                            <div className="bg-blue-50 p-4 rounded-lg border mb-4">
+                                <div>
+                                    <label className="block text-sm text-gray-600 mb-2">
+                                        Max brands in ad type chart: {maxBrandsInAdTypeChart}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="3"
+                                        max="15"
+                                        value={maxBrandsInAdTypeChart}
+                                        onChange={(e) => setMaxBrandsInAdTypeChart(parseInt(e.target.value))}
+                                        className="w-full accent-red-500"
+                                    />
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        Smaller brands will be grouped into "Others"
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeChart === 'mediatype' && transformedData.length > 0 && transformedData[0].hasOwnProperty('Media Type') && (
+                            <div className="bg-blue-50 p-4 rounded-lg border mb-4">
+                                <div>
+                                    <label className="block text-sm text-gray-600 mb-2">
+                                        Max brands in media type chart: {maxBrandsInMediaTypeChart}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="3"
+                                        max="15"
+                                        value={maxBrandsInMediaTypeChart}
+                                        onChange={(e) => setMaxBrandsInMediaTypeChart(parseInt(e.target.value))}
+                                        className="w-full accent-red-500"
+                                    />
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        Smaller brands will be grouped into "Others"
                                     </div>
                                 </div>
                             </div>
@@ -1271,114 +1549,118 @@ const ExcelDataTransformer = () => {
 
     return (
         <div className="flex h-screen bg-gray-50">
-            <div className="w-1/4 bg-white border-r border-gray-200 p-6 flex flex-col">
-                <div className="mb-6 text-center">
-                    <img
-                        src="https://www.umww.com/wp-content/uploads/2024/06/logo-new.png"
-                        alt="UMWW Logo"
-                        className="h-16 w-auto mx-auto mb-4 object-contain max-w-full"
-                        onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                        }}
-                    />
-                    <a
-                        href="https://www.umww.com/wp-content/uploads/2024/06/logo-new.png"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-500 hover:text-red-600 text-sm underline"
-                        style={{ display: 'none' }}
-                    >
-                        UMWW Logo
-                    </a>
-                </div>
-
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-red-400 transition-colors mb-6">
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".xlsx,.xls,.csv"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        id="file-upload"
-                        disabled={isProcessing}
-                        multiple
-                    />
-                    <label htmlFor="file-upload" className="cursor-pointer">
+            <div className="w-1/4 bg-white border-r border-gray-200 flex flex-col h-screen">
+                <div className="flex-1 overflow-y-auto p-6">
+                    <div className="mb-6 text-center">
                         <img
-                            src="/upload-bro.svg"
-                            alt="Upload"
-                            className="w-48 h-auto mx-auto mb-4"
+                            src="https://www.umww.com/wp-content/uploads/2024/06/logo-new.png"
+                            alt="UMWW Logo"
+                            className="h-16 w-auto mx-auto mb-4 object-contain max-w-full"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                            }}
                         />
-                        <p className="text-sm text-gray-600">
-                            {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                            Supports .xlsx, .xls, .csv (Multiple files allowed)
-                        </p>
-                    </label>
-                </div>
+                        <a
+                            href="https://www.umww.com/wp-content/uploads/2024/06/logo-new.png"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-red-500 hover:text-red-600 text-sm underline"
+                            style={{ display: 'none' }}
+                        >
+                            UMWW Logo
+                        </a>
+                    </div>
 
-                {renderProgressBar()}
-                {uploadedFiles.length > 0 && (
-                    <div className="mb-4 flex-1 overflow-y-auto">
-                        <h3 className="font-medium text-gray-800 mb-3">Uploaded Files ({uploadedFiles.length}):</h3>
-                        <div className="space-y-2">
-                            {uploadedFiles.map((file, index) => (
-                                <div key={index} className="bg-blue-50 p-3 rounded-lg">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-blue-700 font-medium truncate">{file.name}</p>
-                                            <p className="text-xs text-blue-600">
-                                                {(file.size / 1024).toFixed(1)} KB • {file.rowsAdded} rows
-                                            </p>
-                                            <p className="text-xs text-blue-500">{file.uploadedAt}</p>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-red-400 transition-colors mb-6">
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xlsx,.xls,.csv"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            id="file-upload"
+                            disabled={isProcessing}
+                            multiple
+                        />
+                        <label htmlFor="file-upload" className="cursor-pointer">
+                            <img
+                                src="/upload-bro.svg"
+                                alt="Upload"
+                                className="w-48 h-auto mx-auto mb-4"
+                            />
+                            <p className="text-sm text-gray-600">
+                                {isProcessing ? 'Processing...' : 'Click to upload Excel files'}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                                Supports .xlsx, .xls, .csv (Multiple files allowed)
+                            </p>
+                        </label>
+                    </div>
+
+                    {renderProgressBar()}
+                    
+                    {uploadedFiles.length > 0 && (
+                        <div className="mb-6">
+                            <h3 className="font-medium text-gray-800 mb-3">Uploaded Files ({uploadedFiles.length}):</h3>
+                            <div className="space-y-2">
+                                {uploadedFiles.map((file, index) => (
+                                    <div key={index} className="bg-blue-50 p-3 rounded-lg">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-blue-700 font-medium truncate">{file.name}</p>
+                                                <p className="text-xs text-blue-600">
+                                                    {(file.size / 1024).toFixed(1)} KB • {file.rowsAdded} rows
+                                                </p>
+                                                <p className="text-xs text-blue-500">{file.uploadedAt}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => removeFile(index)}
+                                                className="ml-2 text-red-500 hover:text-red-700"
+                                            >
+                                                <span className="text-sm">×</span>
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => removeFile(index)}
-                                            className="ml-2 text-red-500 hover:text-red-700"
-                                        >
-                                            <span className="text-sm">×</span>
-                                        </button>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {transformedData.length > 0 && (
-                    <div className="space-y-3">
-                        <button
-                            onClick={copyAllData}
-                            className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md"
-                        >
-                            <span className="mr-2">⧉</span>
-                            Copy All Data
-                        </button>
+                    {transformedData.length > 0 && (
+                        <div className="space-y-3 mb-6">
+                            <button
+                                onClick={copyAllData}
+                                className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md"
+                            >
+                                <span className="mr-2">⧉</span>
+                                Copy All Data
+                            </button>
 
-                        <button
-                            onClick={clearAllData}
-                            className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md"
-                        >
-                            <span className="mr-2">×</span>
-                            Clear All Data
-                        </button>
-                    </div>
-                )}
+                            <button
+                                onClick={clearAllData}
+                                className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md"
+                            >
+                                <span className="mr-2">×</span>
+                                Clear All Data
+                            </button>
+                        </div>
+                    )}
 
-                <div className="mt-auto pt-4 border-t border-gray-200">
-                    <div className="text-xs text-gray-500">
-                        <p className="mb-2 font-medium">Features:</p>
-                        <ul className="space-y-1">
-                            <li>• Data processing & transformation</li>
-                            <li>• Skips first 18 rows & summary rows</li>
-                            <li>• Filters empty/invalid impression data</li>
-                            <li>• Editable cells & column names</li>
-                            <li>• Interactive charts with filtering</li>
-                            <li>• SOV, Ad Type & Media Type analysis</li>
-                            <li>• Configurable column mapping</li>
-                        </ul>
+                    <div className="pt-4 border-t border-gray-200">
+                        <div className="text-xs text-gray-500">
+                            <p className="mb-2 font-medium">Features:</p>
+                            <ul className="space-y-1">
+                                <li>• Data processing & transformation</li>
+                                <li>• Skips first 18 rows & summary rows</li>
+                                <li>• Filters empty/invalid impression data</li>
+                                <li>• Editable cells & column names</li>
+                                <li>• Interactive charts with filtering</li>
+                                <li>• SOV, Ad Type & Media Type analysis</li>
+                                <li>• Configurable column mapping</li>
+                                <li>• Pagination for large datasets</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1546,41 +1828,45 @@ const ExcelDataTransformer = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {getSortedData().map((row, rowIndex) => (
-                                            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                                                {Object.keys(row).map((column) => {
-                                                    const actualRowIndex = transformedData.findIndex(originalRow =>
-                                                        JSON.stringify(originalRow) === JSON.stringify(row)
-                                                    );
-                                                    const isEditing = editingCell?.rowIndex === actualRowIndex && editingCell?.column === column;
-                                                    return (
-                                                        <td key={column} className="px-4 py-2 text-sm text-gray-700 border-b">
-                                                            {isEditing ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={row[column]}
-                                                                    onChange={(e) => handleCellEdit(actualRowIndex, column, e.target.value)}
-                                                                    onBlur={handleCellBlur}
-                                                                    onKeyPress={(e) => handleKeyPress(e, actualRowIndex, column)}
-                                                                    className="w-full px-1 py-0 border-0 outline-none bg-yellow-50 focus:bg-yellow-100"
-                                                                    autoFocus
-                                                                />
-                                                            ) : (
-                                                                <div
-                                                                    onClick={() => handleCellClick(actualRowIndex, column)}
-                                                                    className="cursor-pointer hover:bg-yellow-50 min-h-[20px] w-full"
-                                                                >
-                                                                    {row[column]}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ))}
+                                        {getPaginatedData().map((row, rowIndex) => {
+                                            const actualRowIndex = transformedData.findIndex(originalRow =>
+                                                JSON.stringify(originalRow) === JSON.stringify(row)
+                                            );
+                                            return (
+                                                <tr key={actualRowIndex} className={rowIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                                                    {Object.keys(row).map((column) => {
+                                                        const isEditing = editingCell?.rowIndex === actualRowIndex && editingCell?.column === column;
+                                                        return (
+                                                            <td key={column} className="px-4 py-2 text-sm text-gray-700 border-b">
+                                                                {isEditing ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={row[column]}
+                                                                        onChange={(e) => handleCellEdit(actualRowIndex, column, e.target.value)}
+                                                                        onBlur={handleCellBlur}
+                                                                        onKeyPress={(e) => handleKeyPress(e, actualRowIndex, column)}
+                                                                        className="w-full px-1 py-0 border-0 outline-none bg-yellow-50 focus:bg-yellow-100"
+                                                                        autoFocus
+                                                                    />
+                                                                ) : (
+                                                                    <div
+                                                                        onClick={() => handleCellClick(actualRowIndex, column)}
+                                                                        className="cursor-pointer hover:bg-yellow-50 min-h-[20px] w-full"
+                                                                    >
+                                                                        {row[column]}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            {renderPaginationControls()}
                         </div>
 
                         <div className="bg-white rounded-lg shadow border p-6">
