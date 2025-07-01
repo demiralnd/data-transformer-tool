@@ -1308,7 +1308,7 @@ const ExcelDataTransformer = () => {
                 <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showFilters ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                     <div className="bg-gray-50 p-4 rounded-lg mt-2 border max-h-96 overflow-y-auto">
                         {activeChart === 'impression' && (
-                            <div className="bg-blue-50 p-4 rounded-lg border mb-4">
+                            <div className="bg-red-50 p-4 rounded-lg border mb-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm text-gray-600 mb-2">
@@ -1402,7 +1402,7 @@ const ExcelDataTransformer = () => {
         if (!isProcessing) return null;
 
         return (
-            <div className="bg-blue-50 p-3 rounded-lg border">
+            <div className="bg-red-50 p-3 rounded-lg border">
                 <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
                     <span className="flex items-center truncate flex-1 mr-2">
                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500 mr-2 flex-shrink-0"></div>
@@ -1478,7 +1478,7 @@ const ExcelDataTransformer = () => {
                             <h3 className="font-medium text-gray-800 mb-3">Uploaded Files ({uploadedFiles.length}):</h3>
                             <div className="space-y-2">
                                 {uploadedFiles.map((file, index) => (
-                                    <div key={index} className="bg-blue-50 p-3 rounded-lg">
+                                    <div key={index} className="bg-red-50 p-3 rounded-lg">
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm text-blue-700 font-medium truncate">{file.name}</p>
@@ -1605,7 +1605,7 @@ const ExcelDataTransformer = () => {
                             </div>
 
                             {showBulkEdit && (
-                                <div className="p-4 bg-yellow-50 border-b">
+                                <div className="p-4 bg-red-50 border-b">
                                     <h4 className="font-medium text-gray-800 mb-3">Bulk Edit File Names</h4>
                                     <div className="flex items-center space-x-3">
                                         <div className="flex-1">
