@@ -486,8 +486,8 @@ const ExcelDataTransformer = () => {
             return <span className="text-gray-400 ml-1">↕</span>;
         }
         return sortConfig.direction === 'asc' ?
-            <span className="text-blue-600 ml-1">↑</span> :
-            <span className="text-blue-600 ml-1">↓</span>;
+            <span className="text-black-600 ml-1">↑</span> :
+            <span className="text-black-600 ml-1">↓</span>;
     };
 
     // Pagination controls component
@@ -1481,11 +1481,11 @@ const ExcelDataTransformer = () => {
                                     <div key={index} className="bg-red-50 p-3 rounded-lg">
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-blue-700 font-medium truncate">{file.name}</p>
-                                                <p className="text-xs text-blue-600">
+                                                <p className="text-sm text-black-700 font-medium truncate">{file.name}</p>
+                                                <p className="text-xs text-black-600">
                                                     {(file.size / 1024).toFixed(1)} KB • {file.rowsAdded} rows
                                                 </p>
-                                                <p className="text-xs text-blue-500">{file.uploadedAt}</p>
+                                                <p className="text-xs text-black-500">{file.uploadedAt}</p>
                                             </div>
                                             <button
                                                 onClick={() => removeFile(index)}
