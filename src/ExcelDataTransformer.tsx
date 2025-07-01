@@ -559,8 +559,8 @@ const ExcelDataTransformer = () => {
             return <span className="text-gray-400 ml-1">↕</span>;
         }
         return sortConfig.direction === 'asc' ?
-            <span className="text-blue-600 ml-1">↑</span> :
-            <span className="text-blue-600 ml-1">↓</span>;
+            <span className="text-black-600 ml-1">↑</span> :
+            <span className="text-black-600 ml-1">↓</span>;
     };
 
     // Pagination controls component
@@ -597,7 +597,7 @@ const ExcelDataTransformer = () => {
                         <select
                             value={rowsPerPage}
                             onChange={(e) => handleRowsPerPageChange(parseInt(e.target.value))}
-                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
                         >
                             <option value={25}>25</option>
                             <option value={50}>50</option>
@@ -1393,7 +1393,7 @@ const ExcelDataTransformer = () => {
                 <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showFilters ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                     <div className="bg-gray-50 p-4 rounded-lg mt-2 border max-h-96 overflow-y-auto">
                         {activeChart === 'impression' && (
-                            <div className="bg-blue-50 p-4 rounded-lg border mb-4">
+                            <div className="bg-red-50 p-4 rounded-lg border mb-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm text-gray-600 mb-2">
@@ -1433,7 +1433,7 @@ const ExcelDataTransformer = () => {
                         )}
 
                         {activeChart === 'adtype' && transformedData.length > 0 && transformedData[0].hasOwnProperty('Ad Type') && (
-                            <div className="bg-blue-50 p-4 rounded-lg border mb-4">
+                            <div className="bg-red-50 p-4 rounded-lg border mb-4">
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-2">
                                         Max brands in ad type chart: {maxBrandsInAdTypeChart}
@@ -1454,7 +1454,7 @@ const ExcelDataTransformer = () => {
                         )}
 
                         {activeChart === 'mediatype' && transformedData.length > 0 && transformedData[0].hasOwnProperty('Media Type') && (
-                            <div className="bg-blue-50 p-4 rounded-lg border mb-4">
+                            <div className="bg-red-50 p-4 rounded-lg border mb-4">
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-2">
                                         Max brands in media type chart: {maxBrandsInMediaTypeChart}
@@ -1529,7 +1529,7 @@ const ExcelDataTransformer = () => {
         if (!isProcessing) return null;
 
         return (
-            <div className="bg-blue-50 p-3 rounded-lg border">
+            <div className="bg-red-50 p-3 rounded-lg border">
                 <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
                     <span className="flex items-center truncate flex-1 mr-2">
                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500 mr-2 flex-shrink-0"></div>
@@ -1605,14 +1605,14 @@ const ExcelDataTransformer = () => {
                             <h3 className="font-medium text-gray-800 mb-3">Uploaded Files ({uploadedFiles.length}):</h3>
                             <div className="space-y-2">
                                 {uploadedFiles.map((file, index) => (
-                                    <div key={index} className="bg-blue-50 p-3 rounded-lg">
+                                    <div key={index} className="bg-red-50 p-3 rounded-lg">
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-blue-700 font-medium truncate">{file.name}</p>
-                                                <p className="text-xs text-blue-600">
+                                                <p className="text-sm text-black-700 font-medium truncate">{file.name}</p>
+                                                <p className="text-xs text-black-600">
                                                     {(file.size / 1024).toFixed(1)} KB • {file.rowsAdded} rows
                                                 </p>
-                                                <p className="text-xs text-blue-500">{file.uploadedAt}</p>
+                                                <p className="text-xs text-black-500">{file.uploadedAt}</p>
                                             </div>
                                             <button
                                                 onClick={() => removeFile(index)}
@@ -1732,7 +1732,7 @@ const ExcelDataTransformer = () => {
                             </div>
 
                             {showBulkEdit && (
-                                <div className="p-4 bg-yellow-50 border-b">
+                                <div className="p-4 bg-red-50 border-b">
                                     <h4 className="font-medium text-gray-800 mb-3">Bulk Edit File Names</h4>
                                     <div className="flex items-center space-x-3">
                                         <div className="flex-1">
@@ -1740,7 +1740,7 @@ const ExcelDataTransformer = () => {
                                             <select
                                                 value={selectedFileName}
                                                 onChange={(e) => setSelectedFileName(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
                                             >
                                                 <option value="">Choose a file name...</option>
                                                 {getUniqueFileNames().map((fileName) => (
@@ -1757,7 +1757,7 @@ const ExcelDataTransformer = () => {
                                                 value={bulkEditFileName}
                                                 onChange={(e) => setBulkEditFileName(e.target.value)}
                                                 placeholder="Enter new file name..."
-                                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
                                             />
                                         </div>
                                         <div className="flex space-x-2 pt-6">
