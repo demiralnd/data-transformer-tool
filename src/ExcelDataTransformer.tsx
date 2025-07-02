@@ -234,7 +234,7 @@ const ExcelDataTransformer = () => {
 
                 const percentages = { name: brand };
                 Object.entries(adTypes).forEach(([adType, value]) => {
-                    percentages[adType] = Number(((value / Total) * 100).toFixed(1));
+                    percentages[adType] = Math.round(((value / Total) * 100) * 10) / 10;
                     percentages[`${adType}Value`] = value;
                 });
 
