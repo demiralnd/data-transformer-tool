@@ -1162,6 +1162,7 @@ const ExcelDataTransformer = () => {
                                 <YAxis
                                     domain={[0, 100]}
                                     tick={{ fontSize: 12 }}
+                                    ticks={[0, 20, 40, 60, 80, 100]}
                                     tickFormatter={(value) => `${value}%`}
 
                                 />
@@ -1245,6 +1246,7 @@ const ExcelDataTransformer = () => {
                                 <YAxis
                                     domain={[0, 100]}
                                     tick={{ fontSize: 12 }}
+                                    ticks={[0, 20, 40, 60, 80, 100]}
                                     tickFormatter={(value) => `${value}%`}
 
                                 />
