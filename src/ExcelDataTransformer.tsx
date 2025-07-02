@@ -1162,6 +1162,8 @@ const ExcelDataTransformer = () => {
                                 <YAxis
                                     domain={[0, 100]}
                                     tick={{ fontSize: 12 }}
+                                    tickFormatter={(value) => `${value}%`}
+
                                 />
                                 <Tooltip
                                     formatter={(value, name, props) => {
@@ -1243,6 +1245,8 @@ const ExcelDataTransformer = () => {
                                 <YAxis
                                     domain={[0, 100]}
                                     tick={{ fontSize: 12 }}
+                                    tickFormatter={(value) => `${value}%`}
+
                                 />
                                 <Tooltip
                                     formatter={(value, name, props) => {
