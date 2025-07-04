@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import * as XLSX from 'xlsx';
 
 const ExcelDataTransformer = () => {
@@ -15,6 +15,7 @@ const ExcelDataTransformer = () => {
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [activeChart, setActiveChart] = useState('impression');
     const [colorScheme, setColorScheme] = useState('new-heritage-red');
+    const [trendLineView, setTrendLineView] = useState('month'); // 'month' or 'year'
     const [customColors, setCustomColors] = useState(['#FF3534', '#3197EE', '#06B8A2', '#FFB84E', '#F585DA', '#806FEA', '#99170C', '#216AA3', '#027062', '#B37930']);
     const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
@@ -204,6 +205,81 @@ const ExcelDataTransformer = () => {
             percentage: Number(item.percentage.toFixed(1))
         }));
     }, [filteredChartData, maxBrandsInChart, minPercentageThreshold]);
+
+    // NEW: Line chart data processing function
+    const getLineChartData = () => {
+        const periodBrandData = {};
+
+        filteredChartData.forEach(row => {
+            const brand = row['Brand Name'] || 'Unknown';
+            const month = row['Month'];
+            const year = row['Year'];
+            const impressionStr = row['Impression (ad contact)']?.toString().replace(/,/g, '') || '0';
+            const impression = parseFloat(impressionStr) || 0;
+
+            // Use either year or month as the period based on trendLineView
+            const period = trendLineView === 'year' ? year : month;
+
+            if (!periodBrandData[period]) {
+                periodBrandData[period] = {};
+            }
+            periodBrandData[period][brand] = (periodBrandData[period][brand] || 0) + impression;
+        });
+
+        // Get top brands based on total impressions (using existing logic)
+        const topBrands = impressionChartData.slice(0, maxBrandsInChart).map(brand => brand.name);
+
+        // Sort periods and create line chart data
+        const sortedPeriods = Object.keys(periodBrandData).sort((a, b) => {
+            if (trendLineView === 'year') {
+                return parseInt(a) - parseInt(b);
+            } else {
+                return monthOrder.indexOf(a) - monthOrder.indexOf(b);
+            }
+        });
+
+        return sortedPeriods.map(period => {
+            const periodData = { period };
+            topBrands.forEach(brand => {
+                periodData[brand] = periodBrandData[period][brand] || 0;
+            });
+            return periodData;
+        });
+    };
+
+    // NEW: SOV Table data processing function
+    const getSovTableData = () => {
+        const monthlyBrandData = {};
+        const monthlyTotals = {};
+
+        filteredChartData.forEach(row => {
+            const brand = row['Brand Name'] || 'Unknown';
+            const month = row['Month'];
+            const impressionStr = row['Impression (ad contact)']?.toString().replace(/,/g, '') || '0';
+            const impression = parseFloat(impressionStr) || 0;
+
+            if (!monthlyBrandData[month]) {
+                monthlyBrandData[month] = {};
+            }
+            monthlyBrandData[month][brand] = (monthlyBrandData[month][brand] || 0) + impression;
+            monthlyTotals[month] = (monthlyTotals[month] || 0) + impression;
+        });
+
+        // Get all brands
+        const allBrands = [...new Set(filteredChartData.map(row => row['Brand Name']))].filter(Boolean);
+        
+        // Sort months
+        const sortedMonths = Object.keys(monthlyBrandData).sort((a, b) => {
+            return monthOrder.indexOf(a) - monthOrder.indexOf(b);
+        });
+
+        return {
+            months: sortedMonths,
+            brands: allBrands,
+            data: monthlyBrandData,
+            totals: monthlyTotals
+        };
+    };
 
     const getAdTypeChartData = () => {
         // Check if Ad Type column exists
@@ -429,6 +505,30 @@ const ExcelDataTransformer = () => {
                     chartData = getMediaTypeChartData();
                     title = 'Media Type Distribution by Brand';
                     break;
+                case 'line':
+                    chartData = getLineChartData();
+                    title = `Brand Impression Trends by ${trendLineView === 'year' ? 'Year' : 'Month'}`;
+                    break;
+                case 'sovtable':
+                    const sovData = getSovTableData();
+                    title = 'SOV Percentage Table by Month';
+                    // Handle table data differently
+                    let sovExcelData = [title, ''];
+                    sovExcelData.push(['Month', ...sovData.brands].join('\t'));
+                    sovData.months.forEach(month => {
+                        const rowData = [month];
+                        sovData.brands.forEach(brand => {
+                            const value = sovData.data[month][brand] || 0;
+                            const total = sovData.totals[month] || 0;
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                            rowData.push(`${percentage}%`);
+                        });
+                        sovExcelData.push(rowData.join('\t'));
+                    });
+                    const sovClipboardText = sovExcelData.join('\n');
+                    await navigator.clipboard.writeText(sovClipboardText);
+                    alert('SOV Table data copied! You can paste this directly into Excel.');
+                    return;
             }
 
             if (chartData.length === 0) {
@@ -444,6 +544,17 @@ const ExcelDataTransformer = () => {
                     chartData.forEach(row => {
                         excelData.push(`${row.name}\t${row.value}\t${row.percentage}%`);
                     });
+                    break;
+                case 'line':
+                    if (chartData.length > 0) {
+                        const lineKeys = Object.keys(chartData[0]).filter(key => key !== 'period');
+                        const headers = [trendLineView === 'year' ? 'Year' : 'Month', ...lineKeys];
+                        excelData.push(headers.join('\t'));
+                        chartData.forEach(row => {
+                            const rowData = [row.period, ...lineKeys.map(key => row[key] || 0)];
+                            excelData.push(rowData.join('\t'));
+                        });
+                    }
                     break;
                 case 'adtype':
                 case 'mediatype':
@@ -1033,6 +1144,129 @@ const ExcelDataTransformer = () => {
         return columnDisplayNames[columnKey] || columnKey;
     };
 
+    // NEW: Line Chart rendering function
+    const renderLineChart = () => {
+        const lineData = getLineChartData();
+        
+        if (lineData.length === 0) {
+            return (
+                <div className="h-96 flex items-center justify-center">
+                    <p className="text-gray-500">No trend data available for the current filters</p>
+                </div>
+            );
+        }
+
+        const currentColors = COLOR_SCHEMES[colorScheme];
+        const brands = lineData.length > 0 ? Object.keys(lineData[0]).filter(key => key !== 'period') : [];
+
+        return (
+            <div className="h-96">
+                <div className="flex justify-between items-center mb-2">
+                    <div className="text-xs text-gray-500">
+                        Showing impression trends for top {brands.length} brands over {lineData.length} {trendLineView === 'year' ? 'years' : 'months'}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">View by:</span>
+                        <select
+                            value={trendLineView}
+                            onChange={(e) => setTrendLineView(e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+                        >
+                            <option value="month">Month</option>
+                            <option value="year">Year</option>
+                        </select>
+                    </div>
+                </div>
+                <ResponsiveContainer width="100%" height="90%">
+                    <LineChart data={lineData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                            dataKey="period" 
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                            tick={{ fontSize: 11 }}
+                        />
+                        <YAxis 
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(value) => value.toLocaleString()}
+                        />
+                        <Tooltip 
+                            formatter={(value, name) => [value.toLocaleString(), name]}
+                            labelFormatter={(label) => `${trendLineView === 'year' ? 'Year' : 'Month'}: ${label}`}
+                        />
+                        <Legend />
+                        {brands.map((brand, index) => (
+                            <Line
+                                key={brand}
+                                type="monotone"
+                                dataKey={brand}
+                                stroke={currentColors[index % currentColors.length]}
+                                strokeWidth={2}
+                                dot={{ r: 4 }}
+                                name={brand}
+                            />
+                        ))}
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+        );
+    };
+
+    // NEW: SOV Table rendering function
+    const renderSovTable = () => {
+        const sovData = getSovTableData();
+        
+        if (sovData.months.length === 0 || sovData.brands.length === 0) {
+            return (
+                <div className="h-96 flex items-center justify-center">
+                    <p className="text-gray-500">No SOV table data available for the current filters</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="h-96 overflow-auto">
+                <div className="text-xs text-gray-500 mb-2">
+                    SOV percentages for {sovData.brands.length} brands across {sovData.months.length} months
+                </div>
+                <table className="w-full text-sm border-collapse border border-gray-300">
+                    <thead className="bg-gray-100 sticky top-0">
+                        <tr>
+                            <th className="border border-gray-300 px-3 py-2 text-left font-medium">Month</th>
+                            {sovData.brands.map(brand => (
+                                <th key={brand} className="border border-gray-300 px-3 py-2 text-left font-medium">
+                                    {brand}
+                                </th>
+                            ))}
+                            <th className="border border-gray-300 px-3 py-2 text-left font-medium">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sovData.months.map((month, index) => (
+                            <tr key={month} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                                <td className="border border-gray-300 px-3 py-2 font-medium">{month}</td>
+                                {sovData.brands.map(brand => {
+                                    const value = sovData.data[month][brand] || 0;
+                                    const total = sovData.totals[month] || 0;
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                                    return (
+                                        <td key={brand} className="border border-gray-300 px-3 py-2 text-right">
+                                            {percentage}%
+                                        </td>
+                                    );
+                                })}
+                                <td className="border border-gray-300 px-3 py-2 text-right font-medium">
+                                    {(sovData.totals[month] || 0).toLocaleString()}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
+
     const renderChart = () => {
         const currentColors = COLOR_SCHEMES[colorScheme];
 
@@ -1274,6 +1508,14 @@ const ExcelDataTransformer = () => {
                         </ResponsiveContainer>
                     </div>
                 );
+
+            // NEW: Line chart case
+            case 'line':
+                return renderLineChart();
+
+            // NEW: SOV table case  
+            case 'sovtable':
+                return renderSovTable();
 
             default:
                 return null;
@@ -2017,6 +2259,30 @@ const ExcelDataTransformer = () => {
                                     <span className="mr-2">○</span>
                                     SOV (Impression)
                                 </button>
+
+                                {/* NEW: Trend Line Button - grouped with SOV */}
+                                <button
+                                    onClick={() => setActiveChart('line')}
+                                    className={`px-4 py-2 rounded-lg flex items-center transition-all duration-200 shadow-md ${activeChart === 'line'
+                                            ? 'bg-red-500 text-white hover:bg-red-600'
+                                            : 'bg-red-200 text-gray-700 hover:bg-red-300'
+                                        }`}
+                                >
+                                    <span className="mr-2">─</span>
+                                    Trend Line
+                                </button>
+
+                                {/* NEW: SOV Table Button - grouped with SOV */}
+                                <button
+                                    onClick={() => setActiveChart('sovtable')}
+                                    className={`px-4 py-2 rounded-lg flex items-center transition-all duration-200 shadow-md ${activeChart === 'sovtable'
+                                            ? 'bg-red-500 text-white hover:bg-red-600'
+                                            : 'bg-red-200 text-gray-700 hover:bg-red-300'
+                                        }`}
+                                >
+                                    <span className="mr-2">▦</span>
+                                    SOV Table
+                                </button>
                                 
                                 {transformedData.length > 0 && transformedData[0].hasOwnProperty('Ad Type') && (
                                     <button
@@ -2050,6 +2316,8 @@ const ExcelDataTransformer = () => {
                             <div className="chart-container">
                                 <h3 className="text-lg font-semibold mb-4">
                                     {activeChart === 'impression' && 'Share of Voice (SOV) - Impression Distribution'}
+                                    {activeChart === 'line' && `Brand Impression Trends by ${trendLineView === 'year' ? 'Year' : 'Month'}`}
+                                    {activeChart === 'sovtable' && 'SOV Percentage Table by Month and Brand'}
                                     {activeChart === 'adtype' && 'Ad Type Distribution by Brand (Based on Impressions)'}
                                     {activeChart === 'mediatype' && 'Media Type Distribution by Brand (Based on Impressions)'}
                                 </h3>
