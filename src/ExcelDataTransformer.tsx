@@ -595,7 +595,7 @@ const ExcelDataTransformer = () => {
 
     const downloadChart = async () => {
         try {
-            // Special handling for SOV Table - export as CSV
+            // Special handling for SOV Table - convert to SVG
             if (activeChart === 'sovtable') {
                 const sovData = getSovTableData();
                 if (sovData.periods.length === 0 || sovData.brands.length === 0) {
@@ -603,32 +603,93 @@ const ExcelDataTransformer = () => {
                     return;
                 }
 
-                // Create CSV content
-                const headers = [sovTableView === 'year' ? 'Year' : 'Month', ...sovData.brands, 'Total'];
-                const csvRows = [headers.join(',')];
+                // Create SVG representation of the table
+                const cellWidth = 100;
+                const cellHeight = 30;
+                const headerHeight = 35;
+                const padding = 8;
+                const fontSize = 12;
                 
-                sovData.periods.forEach(period => {
-                    const row = [period];
+                const numCols = sovData.brands.length + 2; // period + brands + total
+                const numRows = sovData.periods.length + 1; // data rows + header
+                
+                const svgWidth = numCols * cellWidth;
+                const svgHeight = headerHeight + (numRows - 1) * cellHeight;
+                
+                let svgContent = `
+                    <svg width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">
+                        <style>
+                            .header-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #374151; }
+                            .cell-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; fill: #374151; }
+                            .number-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; fill: #374151; text-anchor: end; }
+                            .header-bg { fill: #f3f4f6; stroke: #d1d5db; stroke-width: 1; }
+                            .cell-bg { fill: #ffffff; stroke: #d1d5db; stroke-width: 1; }
+                            .alt-cell-bg { fill: #f9fafb; stroke: #d1d5db; stroke-width: 1; }
+                        </style>
+                `;
+
+                // Draw header
+                let x = 0;
+                
+                // Period header
+                svgContent += `<rect x="${x}" y="0" width="${cellWidth}" height="${headerHeight}" class="header-bg"/>`;
+                svgContent += `<text x="${x + padding}" y="${headerHeight/2 + 4}" class="header-text">${sovTableView === 'year' ? 'Year' : 'Month'}</text>`;
+                x += cellWidth;
+                
+                // Brand headers
+                sovData.brands.forEach(brand => {
+                    svgContent += `<rect x="${x}" y="0" width="${cellWidth}" height="${headerHeight}" class="header-bg"/>`;
+                    const truncatedBrand = brand.length > 10 ? brand.substring(0, 10) + '...' : brand;
+                    svgContent += `<text x="${x + padding}" y="${headerHeight/2 + 4}" class="header-text">${truncatedBrand}</text>`;
+                    x += cellWidth;
+                });
+                
+                // Total header
+                svgContent += `<rect x="${x}" y="0" width="${cellWidth}" height="${headerHeight}" class="header-bg"/>`;
+                svgContent += `<text x="${x + padding}" y="${headerHeight/2 + 4}" class="header-text">Total</text>`;
+
+                // Draw data rows
+                let y = headerHeight;
+                sovData.periods.forEach((period, rowIndex) => {
+                    x = 0;
+                    const isEvenRow = rowIndex % 2 === 0;
+                    const cellClass = isEvenRow ? 'alt-cell-bg' : 'cell-bg';
+                    
+                    // Period cell
+                    svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
+                    svgContent += `<text x="${x + padding}" y="${y + cellHeight/2 + 4}" class="cell-text">${period}</text>`;
+                    x += cellWidth;
+                    
+                    // Brand percentage cells
                     sovData.brands.forEach(brand => {
                         const value = sovData.data[period][brand] || 0;
                         const total = sovData.totals[period] || 0;
                         const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
-                        row.push(`${percentage}%`);
+                        
+                        svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
+                        svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="number-text">${percentage}%</text>`;
+                        x += cellWidth;
                     });
-                    row.push(sovData.totals[period] || 0);
-                    csvRows.push(row.join(','));
+                    
+                    // Total cell
+                    svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
+                    svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="number-text">${(sovData.totals[period] || 0).toLocaleString()}</text>`;
+                    
+                    y += cellHeight;
                 });
 
-                const csvContent = csvRows.join('\n');
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                svgContent += '</svg>';
+
+                // Create and download SVG
+                const svgBlob = new Blob([svgContent], {type: 'image/svg+xml;charset=utf-8'});
+                const url = URL.createObjectURL(svgBlob);
                 const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', `sov-table-${sovTableView}-${new Date().toISOString().split('T')[0]}.csv`);
-                link.style.visibility = 'hidden';
+                link.download = `sov-table-${sovTableView}-${new Date().toISOString().split('T')[0]}.svg`;
+                link.href = url;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                URL.revokeObjectURL(url);
                 return;
             }
 
