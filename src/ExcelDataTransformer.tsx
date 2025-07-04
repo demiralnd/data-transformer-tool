@@ -16,6 +16,7 @@ const ExcelDataTransformer = () => {
     const [activeChart, setActiveChart] = useState('impression');
     const [colorScheme, setColorScheme] = useState('new-heritage-red');
     const [trendLineView, setTrendLineView] = useState('month'); // 'month' or 'year'
+    const [sovTableView, setSovTableView] = useState('month'); // 'month' or 'year'
     const [customColors, setCustomColors] = useState(['#FF3534', '#3197EE', '#06B8A2', '#FFB84E', '#F585DA', '#806FEA', '#99170C', '#216AA3', '#027062', '#B37930']);
     const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
@@ -249,35 +250,43 @@ const ExcelDataTransformer = () => {
 
     // NEW: SOV Table data processing function
     const getSovTableData = () => {
-        const monthlyBrandData = {};
-        const monthlyTotals = {};
+        const periodBrandData = {};
+        const periodTotals = {};
 
         filteredChartData.forEach(row => {
             const brand = row['Brand Name'] || 'Unknown';
             const month = row['Month'];
+            const year = row['Year'];
             const impressionStr = row['Impression (ad contact)']?.toString().replace(/,/g, '') || '0';
             const impression = parseFloat(impressionStr) || 0;
 
-            if (!monthlyBrandData[month]) {
-                monthlyBrandData[month] = {};
+            // Use either year or month as the period based on sovTableView
+            const period = sovTableView === 'year' ? year : month;
+
+            if (!periodBrandData[period]) {
+                periodBrandData[period] = {};
             }
-            monthlyBrandData[month][brand] = (monthlyBrandData[month][brand] || 0) + impression;
-            monthlyTotals[month] = (monthlyTotals[month] || 0) + impression;
+            periodBrandData[period][brand] = (periodBrandData[period][brand] || 0) + impression;
+            periodTotals[period] = (periodTotals[period] || 0) + impression;
         });
 
         // Get all brands
         const allBrands = [...new Set(filteredChartData.map(row => row['Brand Name']))].filter(Boolean);
         
-        // Sort months
-        const sortedMonths = Object.keys(monthlyBrandData).sort((a, b) => {
-            return monthOrder.indexOf(a) - monthOrder.indexOf(b);
+        // Sort periods
+        const sortedPeriods = Object.keys(periodBrandData).sort((a, b) => {
+            if (sovTableView === 'year') {
+                return parseInt(a) - parseInt(b);
+            } else {
+                return monthOrder.indexOf(a) - monthOrder.indexOf(b);
+            }
         });
 
         return {
-            months: sortedMonths,
+            periods: sortedPeriods,
             brands: allBrands,
-            data: monthlyBrandData,
-            totals: monthlyTotals
+            data: periodBrandData,
+            totals: periodTotals
         };
     };
 
@@ -511,15 +520,15 @@ const ExcelDataTransformer = () => {
                     break;
                 case 'sovtable':
                     const sovData = getSovTableData();
-                    title = 'SOV Percentage Table by Month';
+                    title = `SOV Percentage Table by ${sovTableView === 'year' ? 'Year' : 'Month'}`;
                     // Handle table data differently
                     let sovExcelData = [title, ''];
-                    sovExcelData.push(['Month', ...sovData.brands].join('\t'));
-                    sovData.months.forEach(month => {
-                        const rowData = [month];
+                    sovExcelData.push([sovTableView === 'year' ? 'Year' : 'Month', ...sovData.brands].join('\t'));
+                    sovData.periods.forEach(period => {
+                        const rowData = [period];
                         sovData.brands.forEach(brand => {
-                            const value = sovData.data[month][brand] || 0;
-                            const total = sovData.totals[month] || 0;
+                            const value = sovData.data[period][brand] || 0;
+                            const total = sovData.totals[period] || 0;
                             const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
                             rowData.push(`${percentage}%`);
                         });
@@ -586,7 +595,44 @@ const ExcelDataTransformer = () => {
 
     const downloadChart = async () => {
         try {
-            // Find the SVG element (Recharts renders as SVG)
+            // Special handling for SOV Table - export as CSV
+            if (activeChart === 'sovtable') {
+                const sovData = getSovTableData();
+                if (sovData.periods.length === 0 || sovData.brands.length === 0) {
+                    alert('No SOV table data to download.');
+                    return;
+                }
+
+                // Create CSV content
+                const headers = [sovTableView === 'year' ? 'Year' : 'Month', ...sovData.brands, 'Total'];
+                const csvRows = [headers.join(',')];
+                
+                sovData.periods.forEach(period => {
+                    const row = [period];
+                    sovData.brands.forEach(brand => {
+                        const value = sovData.data[period][brand] || 0;
+                        const total = sovData.totals[period] || 0;
+                        const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                        row.push(`${percentage}%`);
+                    });
+                    row.push(sovData.totals[period] || 0);
+                    csvRows.push(row.join(','));
+                });
+
+                const csvContent = csvRows.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `sov-table-${sovTableView}-${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                return;
+            }
+
+            // For other charts (SVG-based), use the existing SVG download logic
             const svgElement = document.querySelector('.recharts-wrapper svg');
             if (!svgElement) {
                 alert('Chart not found. Please make sure a chart is displayed.');
@@ -1217,7 +1263,7 @@ const ExcelDataTransformer = () => {
     const renderSovTable = () => {
         const sovData = getSovTableData();
         
-        if (sovData.months.length === 0 || sovData.brands.length === 0) {
+        if (sovData.periods.length === 0 || sovData.brands.length === 0) {
             return (
                 <div className="h-96 flex items-center justify-center">
                     <p className="text-gray-500">No SOV table data available for the current filters</p>
@@ -1226,43 +1272,58 @@ const ExcelDataTransformer = () => {
         }
 
         return (
-            <div className="h-96 overflow-auto">
-                <div className="text-xs text-gray-500 mb-2">
-                    SOV percentages for {sovData.brands.length} brands across {sovData.months.length} months
+            <div className="h-96">
+                <div className="flex justify-between items-center mb-2">
+                    <div className="text-xs text-gray-500">
+                        SOV percentages for {sovData.brands.length} brands across {sovData.periods.length} {sovTableView === 'year' ? 'years' : 'months'}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">View by:</span>
+                        <select
+                            value={sovTableView}
+                            onChange={(e) => setSovTableView(e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+                        >
+                            <option value="month">Month</option>
+                            <option value="year">Year</option>
+                        </select>
+                    </div>
                 </div>
-                <table className="w-full text-sm border-collapse border border-gray-300">
-                    <thead className="bg-gray-100 sticky top-0">
-                        <tr>
-                            <th className="border border-gray-300 px-3 py-2 text-left font-medium">Month</th>
-                            {sovData.brands.map(brand => (
-                                <th key={brand} className="border border-gray-300 px-3 py-2 text-left font-medium">
-                                    {brand}
-                                </th>
-                            ))}
-                            <th className="border border-gray-300 px-3 py-2 text-left font-medium">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sovData.months.map((month, index) => (
-                            <tr key={month} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                                <td className="border border-gray-300 px-3 py-2 font-medium">{month}</td>
-                                {sovData.brands.map(brand => {
-                                    const value = sovData.data[month][brand] || 0;
-                                    const total = sovData.totals[month] || 0;
-                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
-                                    return (
-                                        <td key={brand} className="border border-gray-300 px-3 py-2 text-right">
-                                            {percentage}%
-                                        </td>
-                                    );
-                                })}
-                                <td className="border border-gray-300 px-3 py-2 text-right font-medium">
-                                    {(sovData.totals[month] || 0).toLocaleString()}
-                                </td>
+                <div className="overflow-auto" style={{ height: 'calc(100% - 40px)' }}>
+                    <table className="w-full text-sm border-collapse border border-gray-300" id="sov-table">
+                        <thead className="bg-gray-100 sticky top-0">
+                            <tr>
+                                <th className="border border-gray-300 px-3 py-2 text-left font-medium">{sovTableView === 'year' ? 'Year' : 'Month'}</th>
+                                {sovData.brands.map(brand => (
+                                    <th key={brand} className="border border-gray-300 px-3 py-2 text-left font-medium">
+                                        {brand}
+                                    </th>
+                                ))}
+                                <th className="border border-gray-300 px-3 py-2 text-left font-medium">Total</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {sovData.periods.map((period, index) => (
+                                <tr key={period} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                                    <td className="border border-gray-300 px-3 py-2 font-medium">{period}</td>
+                                    {sovData.brands.map(brand => {
+                                        const value = sovData.data[period][brand] || 0;
+                                        const total = sovData.totals[period] || 0;
+                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                                        return (
+                                            <td key={brand} className="border border-gray-300 px-3 py-2 text-right">
+                                                {percentage}%
+                                            </td>
+                                        );
+                                    })}
+                                    <td className="border border-gray-300 px-3 py-2 text-right font-medium">
+                                        {(sovData.totals[period] || 0).toLocaleString()}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         );
     };
@@ -2317,7 +2378,7 @@ const ExcelDataTransformer = () => {
                                 <h3 className="text-lg font-semibold mb-4">
                                     {activeChart === 'impression' && 'Share of Voice (SOV) - Impression Distribution'}
                                     {activeChart === 'line' && `Brand Impression Trends by ${trendLineView === 'year' ? 'Year' : 'Month'}`}
-                                    {activeChart === 'sovtable' && 'SOV Percentage Table by Month and Brand'}
+                                    {activeChart === 'sovtable' && `SOV Percentage Table by ${sovTableView === 'year' ? 'Year' : 'Month'} and Brand`}
                                     {activeChart === 'adtype' && 'Ad Type Distribution by Brand (Based on Impressions)'}
                                     {activeChart === 'mediatype' && 'Media Type Distribution by Brand (Based on Impressions)'}
                                 </h3>
