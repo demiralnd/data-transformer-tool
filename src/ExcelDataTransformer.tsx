@@ -17,6 +17,7 @@ const ExcelDataTransformer = () => {
     const [colorScheme, setColorScheme] = useState('new-heritage-red');
     const [trendLineView, setTrendLineView] = useState('month'); // 'month' or 'year'
     const [sovTableView, setSovTableView] = useState('month'); // 'month' or 'year'
+    const [sovTableDisplayMode, setSovTableDisplayMode] = useState('percentage'); // 'percentage' or 'impressions'
     const [customColors, setCustomColors] = useState(['#FF3534', '#3197EE', '#06B8A2', '#FFB84E', '#F585DA', '#806FEA', '#99170C', '#216AA3', '#027062', '#B37930']);
     const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
@@ -520,7 +521,7 @@ const ExcelDataTransformer = () => {
                     break;
                 case 'sovtable':
                     const sovData = getSovTableData();
-                    title = `SOV Percentage Table by ${sovTableView === 'year' ? 'Year' : 'Month'}`;
+                    title = `SOV ${sovTableDisplayMode === 'percentage' ? 'Percentage' : 'Impression'} Table by ${sovTableView === 'year' ? 'Year' : 'Month'}`;
                     // Handle table data differently
                     let sovExcelData = [title, ''];
                     sovExcelData.push([sovTableView === 'year' ? 'Year' : 'Month', ...sovData.brands].join('\t'));
@@ -529,8 +530,13 @@ const ExcelDataTransformer = () => {
                         sovData.brands.forEach(brand => {
                             const value = sovData.data[period][brand] || 0;
                             const total = sovData.totals[period] || 0;
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
-                            rowData.push(`${percentage}%`);
+                            
+                            if (sovTableDisplayMode === 'percentage') {
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                                rowData.push(`${percentage}%`);
+                            } else {
+                                rowData.push(value);
+                            }
                         });
                         sovExcelData.push(rowData.join('\t'));
                     });
@@ -595,7 +601,7 @@ const ExcelDataTransformer = () => {
 
     const downloadChart = async () => {
         try {
-            // Special handling for SOV Table - convert to SVG
+            // Special handling for SOV Table - provide both SVG and CSV
             if (activeChart === 'sovtable') {
                 const sovData = getSovTableData();
                 if (sovData.periods.length === 0 || sovData.brands.length === 0) {
@@ -603,8 +609,10 @@ const ExcelDataTransformer = () => {
                     return;
                 }
 
-                // Create SVG representation of the table
-                const cellWidth = 100;
+                const dateStr = new Date().toISOString().split('T')[0];
+                
+                // 1. Create and download SVG
+                const cellWidth = 120; // Increased width for impression numbers
                 const cellHeight = 30;
                 const headerHeight = 35;
                 const padding = 8;
@@ -639,7 +647,7 @@ const ExcelDataTransformer = () => {
                 // Brand headers
                 sovData.brands.forEach(brand => {
                     svgContent += `<rect x="${x}" y="0" width="${cellWidth}" height="${headerHeight}" class="header-bg"/>`;
-                    const truncatedBrand = brand.length > 10 ? brand.substring(0, 10) + '...' : brand;
+                    const truncatedBrand = brand.length > 12 ? brand.substring(0, 12) + '...' : brand;
                     svgContent += `<text x="${x + padding}" y="${headerHeight/2 + 4}" class="header-text">${truncatedBrand}</text>`;
                     x += cellWidth;
                 });
@@ -660,14 +668,21 @@ const ExcelDataTransformer = () => {
                     svgContent += `<text x="${x + padding}" y="${y + cellHeight/2 + 4}" class="cell-text">${period}</text>`;
                     x += cellWidth;
                     
-                    // Brand percentage cells
+                    // Brand cells (percentage or impression based on display mode)
                     sovData.brands.forEach(brand => {
                         const value = sovData.data[period][brand] || 0;
                         const total = sovData.totals[period] || 0;
-                        const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                        
+                        let displayValue;
+                        if (sovTableDisplayMode === 'percentage') {
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                            displayValue = `${percentage}%`;
+                        } else {
+                            displayValue = value.toLocaleString();
+                        }
                         
                         svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
-                        svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="number-text">${percentage}%</text>`;
+                        svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="number-text">${displayValue}</text>`;
                         x += cellWidth;
                     });
                     
@@ -680,16 +695,53 @@ const ExcelDataTransformer = () => {
 
                 svgContent += '</svg>';
 
-                // Create and download SVG
+                // Download SVG
                 const svgBlob = new Blob([svgContent], {type: 'image/svg+xml;charset=utf-8'});
-                const url = URL.createObjectURL(svgBlob);
-                const link = document.createElement('a');
-                link.download = `sov-table-${sovTableView}-${new Date().toISOString().split('T')[0]}.svg`;
-                link.href = url;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
+                const svgUrl = URL.createObjectURL(svgBlob);
+                const svgLink = document.createElement('a');
+                svgLink.download = `sov-table-${sovTableView}-${sovTableDisplayMode}-${dateStr}.svg`;
+                svgLink.href = svgUrl;
+                document.body.appendChild(svgLink);
+                svgLink.click();
+                document.body.removeChild(svgLink);
+                URL.revokeObjectURL(svgUrl);
+
+                // 2. Create and download CSV (with a slight delay)
+                setTimeout(() => {
+                    const headers = [sovTableView === 'year' ? 'Year' : 'Month', ...sovData.brands, 'Total'];
+                    const csvRows = [headers.join(',')];
+                    
+                    sovData.periods.forEach(period => {
+                        const row = [period];
+                        sovData.brands.forEach(brand => {
+                            const value = sovData.data[period][brand] || 0;
+                            const total = sovData.totals[period] || 0;
+                            
+                            if (sovTableDisplayMode === 'percentage') {
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                                row.push(`${percentage}%`);
+                            } else {
+                                row.push(value);
+                            }
+                        });
+                        row.push(sovData.totals[period] || 0);
+                        csvRows.push(row.join(','));
+                    });
+
+                    const csvContent = csvRows.join('\n');
+                    const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const csvUrl = URL.createObjectURL(csvBlob);
+                    const csvLink = document.createElement('a');
+                    csvLink.download = `sov-table-${sovTableView}-${sovTableDisplayMode}-${dateStr}.csv`;
+                    csvLink.href = csvUrl;
+                    document.body.appendChild(csvLink);
+                    csvLink.click();
+                    document.body.removeChild(csvLink);
+                    URL.revokeObjectURL(csvUrl);
+                    
+                    alert('SOV Table downloaded as both SVG and CSV files!');
+                }, 500);
+                
                 return;
             }
 
@@ -1336,18 +1388,31 @@ const ExcelDataTransformer = () => {
             <div className="h-96">
                 <div className="flex justify-between items-center mb-2">
                     <div className="text-xs text-gray-500">
-                        SOV percentages for {sovData.brands.length} brands across {sovData.periods.length} {sovTableView === 'year' ? 'years' : 'months'}
+                        {sovTableDisplayMode === 'percentage' ? 'SOV percentages' : 'Impression numbers'} for {sovData.brands.length} brands across {sovData.periods.length} {sovTableView === 'year' ? 'years' : 'months'}
                     </div>
-                    <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-600">View by:</span>
-                        <select
-                            value={sovTableView}
-                            onChange={(e) => setSovTableView(e.target.value)}
-                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
-                        >
-                            <option value="month">Month</option>
-                            <option value="year">Year</option>
-                        </select>
+                    <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-600">View by:</span>
+                            <select
+                                value={sovTableView}
+                                onChange={(e) => setSovTableView(e.target.value)}
+                                className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+                            >
+                                <option value="month">Month</option>
+                                <option value="year">Year</option>
+                            </select>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-600">Display:</span>
+                            <select
+                                value={sovTableDisplayMode}
+                                onChange={(e) => setSovTableDisplayMode(e.target.value)}
+                                className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+                            >
+                                <option value="percentage">Percentage</option>
+                                <option value="impressions">Impressions</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div className="overflow-auto" style={{ height: 'calc(100% - 40px)' }}>
@@ -1370,10 +1435,18 @@ const ExcelDataTransformer = () => {
                                     {sovData.brands.map(brand => {
                                         const value = sovData.data[period][brand] || 0;
                                         const total = sovData.totals[period] || 0;
-                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                                        
+                                        let displayValue;
+                                        if (sovTableDisplayMode === 'percentage') {
+                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
+                                            displayValue = `${percentage}%`;
+                                        } else {
+                                            displayValue = value.toLocaleString();
+                                        }
+                                        
                                         return (
                                             <td key={brand} className="border border-gray-300 px-3 py-2 text-right">
-                                                {percentage}%
+                                                {displayValue}
                                             </td>
                                         );
                                     })}
@@ -2439,7 +2512,7 @@ const ExcelDataTransformer = () => {
                                 <h3 className="text-lg font-semibold mb-4">
                                     {activeChart === 'impression' && 'Share of Voice (SOV) - Impression Distribution'}
                                     {activeChart === 'line' && `Brand Impression Trends by ${trendLineView === 'year' ? 'Year' : 'Month'}`}
-                                    {activeChart === 'sovtable' && `SOV Percentage Table by ${sovTableView === 'year' ? 'Year' : 'Month'} and Brand`}
+                                    {activeChart === 'sovtable' && `SOV ${sovTableDisplayMode === 'percentage' ? 'Percentage' : 'Impression'} Table by ${sovTableView === 'year' ? 'Year' : 'Month'} and Brand`}
                                     {activeChart === 'adtype' && 'Ad Type Distribution by Brand (Based on Impressions)'}
                                     {activeChart === 'mediatype' && 'Media Type Distribution by Brand (Based on Impressions)'}
                                 </h3>
