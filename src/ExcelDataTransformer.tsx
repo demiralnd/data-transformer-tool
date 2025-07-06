@@ -71,6 +71,22 @@ const ExcelDataTransformer = () => {
         setCurrentPage(1);
     }, [transformedData, sortConfig]);
 
+    // Auto-load notification on component mount
+    useEffect(() => {
+        const savedData = localStorage.getItem('excelTransformer_session');
+        if (savedData) {
+            try {
+                const sessionData = JSON.parse(savedData);
+                if (sessionData.timestamp && sessionData.transformedData?.length > 0) {
+                    const savedDate = new Date(sessionData.timestamp);
+                    console.log(`Saved session found from ${savedDate.toLocaleString()} with ${sessionData.transformedData.length} rows`);
+                }
+            } catch (error) {
+                console.error('Error checking saved session:', error);
+            }
+        }
+    }, []);
+
     const monthOrder = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
@@ -107,6 +123,99 @@ const ExcelDataTransformer = () => {
 
     const resetCustomColors = () => {
         setCustomColors(['#FF3534', '#3197EE', '#06B8A2', '#FFB84E', '#F585DA', '#806FEA', '#99170C', '#216AA3', '#027062', '#B37930']);
+    };
+
+    // Save and Load Session Functions
+    const saveSession = () => {
+        try {
+            const sessionData = {
+                transformedData,
+                uploadedFiles,
+                chartFilters,
+                columnConfig,
+                columnDisplayNames,
+                activeChart,
+                trendLineView,
+                sovTableView,
+                sovTableDisplayMode,
+                maxBrandsInChart,
+                minPercentageThreshold,
+                maxBrandsInAdTypeChart,
+                maxBrandsInMediaTypeChart,
+                colorScheme,
+                customColors,
+                timestamp: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            localStorage.setItem('excelTransformer_session', JSON.stringify(sessionData));
+            alert(`Session saved successfully!\nData: ${transformedData.length} rows, ${uploadedFiles.length} files\nSaved at: ${new Date().toLocaleString()}`);
+        } catch (error) {
+            console.error('Failed to save session:', error);
+            alert('Failed to save session. Your browser storage might be full.');
+        }
+    };
+
+    const loadSession = () => {
+        try {
+            const savedData = localStorage.getItem('excelTransformer_session');
+            if (!savedData) {
+                alert('No saved session found.');
+                return;
+            }
+
+            const sessionData = JSON.parse(savedData);
+            
+            // Verify data structure
+            if (!sessionData.version || !sessionData.timestamp) {
+                throw new Error('Invalid session data format');
+            }
+
+            // Restore all state
+            setTransformedData(sessionData.transformedData || []);
+            setUploadedFiles(sessionData.uploadedFiles || []);
+            setChartFilters(sessionData.chartFilters || {
+                fileNames: [],
+                brands: [],
+                years: [],
+                adTypes: [],
+                mediaTypes: [],
+                months: []
+            });
+            setColumnConfig(sessionData.columnConfig || {
+                includeBrand: true,
+                includeMediaType: true,
+                includeAdType: true
+            });
+            setColumnDisplayNames(sessionData.columnDisplayNames || {});
+            setActiveChart(sessionData.activeChart || 'impression');
+            setTrendLineView(sessionData.trendLineView || 'month');
+            setSovTableView(sessionData.sovTableView || 'month');
+            setSovTableDisplayMode(sessionData.sovTableDisplayMode || 'percentage');
+            setMaxBrandsInChart(sessionData.maxBrandsInChart || 8);
+            setMinPercentageThreshold(sessionData.minPercentageThreshold || 2);
+            setMaxBrandsInAdTypeChart(sessionData.maxBrandsInAdTypeChart || 8);
+            setMaxBrandsInMediaTypeChart(sessionData.maxBrandsInMediaTypeChart || 8);
+            setColorScheme(sessionData.colorScheme || 'new-heritage-red');
+            setCustomColors(sessionData.customColors || ['#FF3534', '#3197EE', '#06B8A2', '#FFB84E', '#F585DA', '#806FEA', '#99170C', '#216AA3', '#027062', '#B37930']);
+
+            const savedDate = new Date(sessionData.timestamp);
+            alert(`Session loaded successfully!\nData: ${sessionData.transformedData?.length || 0} rows, ${sessionData.uploadedFiles?.length || 0} files\nSaved: ${savedDate.toLocaleString()}`);
+        } catch (error) {
+            console.error('Failed to load session:', error);
+            alert('Failed to load session. The saved data might be corrupted.');
+        }
+    };
+
+    const clearSavedSession = () => {
+        if (window.confirm('Are you sure you want to delete the saved session? This cannot be undone.')) {
+            localStorage.removeItem('excelTransformer_session');
+            alert('Saved session deleted successfully.');
+        }
+    };
+
+    const hasSavedSession = () => {
+        return localStorage.getItem('excelTransformer_session') !== null;
     };
 
     // Optimized sleep function
@@ -524,7 +633,21 @@ const ExcelDataTransformer = () => {
                     title = `SOV ${sovTableDisplayMode === 'percentage' ? 'Percentage' : 'Impression'} Table by ${sovTableView === 'year' ? 'Year' : 'Month'}`;
                     // Handle table data differently
                     let sovExcelData = [title, ''];
-                    sovExcelData.push([sovTableView === 'year' ? 'Year' : 'Month', ...sovData.brands].join('\t'));
+                    sovExcelData.push([sovTableView === 'year' ? 'Year' : 'Month', ...sovData.brands, 'Total'].join('\t'));
+                    
+                    // Calculate grand total for percentage calculations
+                    const grandTotal = Object.values(sovData.totals).reduce((sum, value) => sum + value, 0);
+                    
+                    // Calculate yearly totals by brand (for month view)
+                    const yearlyBrandTotals = {};
+                    if (sovTableView === 'month') {
+                        sovData.brands.forEach(brand => {
+                            yearlyBrandTotals[brand] = sovData.periods.reduce((sum, period) => {
+                                return sum + (sovData.data[period][brand] || 0);
+                            }, 0);
+                        });
+                    }
+                    
                     sovData.periods.forEach(period => {
                         const rowData = [period];
                         sovData.brands.forEach(brand => {
@@ -538,8 +661,37 @@ const ExcelDataTransformer = () => {
                                 rowData.push(value);
                             }
                         });
+                        // Add total column based on display mode
+                        if (sovTableDisplayMode === 'percentage') {
+                            const periodPercentage = grandTotal > 0 ? (((sovData.totals[period] || 0) / grandTotal) * 100).toFixed(2) : '0.00';
+                            rowData.push(`${periodPercentage}%`);
+                        } else {
+                            rowData.push(sovData.totals[period] || 0);
+                        }
                         sovExcelData.push(rowData.join('\t'));
                     });
+                    
+                    // Add Year Total row (only for month view)
+                    if (sovTableView === 'month') {
+                        const yearTotalRow = ['Year Total'];
+                        sovData.brands.forEach(brand => {
+                            const yearTotal = yearlyBrandTotals[brand] || 0;
+                            
+                            if (sovTableDisplayMode === 'percentage') {
+                                const percentage = grandTotal > 0 ? ((yearTotal / grandTotal) * 100).toFixed(2) : '0.00';
+                                yearTotalRow.push(`${percentage}%`);
+                            } else {
+                                yearTotalRow.push(yearTotal);
+                            }
+                        });
+                        // Add year total - total column
+                        if (sovTableDisplayMode === 'percentage') {
+                            yearTotalRow.push('100.00%');
+                        } else {
+                            yearTotalRow.push(grandTotal);
+                        }
+                        sovExcelData.push(yearTotalRow.join('\t'));
+                    }
                     const sovClipboardText = sovExcelData.join('\n');
                     await navigator.clipboard.writeText(sovClipboardText);
                     alert('SOV Table data copied! You can paste this directly into Excel.');
@@ -601,7 +753,7 @@ const ExcelDataTransformer = () => {
 
     const downloadChart = async () => {
         try {
-            // Special handling for SOV Table - provide both SVG and CSV
+            // Special handling for SOV Table - provide SVG
             if (activeChart === 'sovtable') {
                 const sovData = getSovTableData();
                 if (sovData.periods.length === 0 || sovData.brands.length === 0) {
@@ -611,7 +763,20 @@ const ExcelDataTransformer = () => {
 
                 const dateStr = new Date().toISOString().split('T')[0];
                 
-                // 1. Create and download SVG
+                // Calculate grand total for percentage calculations
+                const grandTotal = Object.values(sovData.totals).reduce((sum, value) => sum + value, 0);
+                
+                // Calculate yearly totals by brand (for month view)
+                const yearlyBrandTotals = {};
+                if (sovTableView === 'month') {
+                    sovData.brands.forEach(brand => {
+                        yearlyBrandTotals[brand] = sovData.periods.reduce((sum, period) => {
+                            return sum + (sovData.data[period][brand] || 0);
+                        }, 0);
+                    });
+                }
+                
+                // Create and download SVG
                 const cellWidth = 120; // Increased width for impression numbers
                 const cellHeight = 30;
                 const headerHeight = 35;
@@ -619,7 +784,7 @@ const ExcelDataTransformer = () => {
                 const fontSize = 12;
                 
                 const numCols = sovData.brands.length + 2; // period + brands + total
-                const numRows = sovData.periods.length + 1; // data rows + header
+                const numRows = sovData.periods.length + 1 + (sovTableView === 'month' ? 1 : 0); // data rows + header + year total (if month view)
                 
                 const svgWidth = numCols * cellWidth;
                 const svgHeight = headerHeight + (numRows - 1) * cellHeight;
@@ -688,10 +853,50 @@ const ExcelDataTransformer = () => {
                     
                     // Total cell
                     svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
-                    svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="number-text">${(sovData.totals[period] || 0).toLocaleString()}</text>`;
+                    let totalDisplayValue;
+                    if (sovTableDisplayMode === 'percentage') {
+                        const periodPercentage = grandTotal > 0 ? (((sovData.totals[period] || 0) / grandTotal) * 100).toFixed(2) : '0.00';
+                        totalDisplayValue = `${periodPercentage}%`;
+                    } else {
+                        totalDisplayValue = (sovData.totals[period] || 0).toLocaleString();
+                    }
+                    svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="number-text">${totalDisplayValue}</text>`;
                     
                     y += cellHeight;
                 });
+
+                // Add Year Total row (only for month view)
+                if (sovTableView === 'month') {
+                    x = 0;
+                    const cellClass = 'header-bg'; // Use header style for year total
+                    
+                    // Year Total label cell
+                    svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
+                    svgContent += `<text x="${x + padding}" y="${y + cellHeight/2 + 4}" class="header-text">Year Total</text>`;
+                    x += cellWidth;
+                    
+                    // Brand yearly total cells
+                    sovData.brands.forEach(brand => {
+                        const yearTotal = yearlyBrandTotals[brand] || 0;
+                        
+                        let displayValue;
+                        if (sovTableDisplayMode === 'percentage') {
+                            const percentage = grandTotal > 0 ? ((yearTotal / grandTotal) * 100).toFixed(2) : '0.00';
+                            displayValue = `${percentage}%`;
+                        } else {
+                            displayValue = yearTotal.toLocaleString();
+                        }
+                        
+                        svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
+                        svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="header-text">${displayValue}</text>`;
+                        x += cellWidth;
+                    });
+                    
+                    // Year total - total cell
+                    svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
+                    const yearTotalDisplay = sovTableDisplayMode === 'percentage' ? '100.00%' : grandTotal.toLocaleString();
+                    svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="header-text">${yearTotalDisplay}</text>`;
+                }
 
                 svgContent += '</svg>';
 
@@ -706,42 +911,7 @@ const ExcelDataTransformer = () => {
                 document.body.removeChild(svgLink);
                 URL.revokeObjectURL(svgUrl);
 
-                // 2. Create and download CSV (with a slight delay)
-                setTimeout(() => {
-                    const headers = [sovTableView === 'year' ? 'Year' : 'Month', ...sovData.brands, 'Total'];
-                    const csvRows = [headers.join(',')];
-                    
-                    sovData.periods.forEach(period => {
-                        const row = [period];
-                        sovData.brands.forEach(brand => {
-                            const value = sovData.data[period][brand] || 0;
-                            const total = sovData.totals[period] || 0;
-                            
-                            if (sovTableDisplayMode === 'percentage') {
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00';
-                                row.push(`${percentage}%`);
-                            } else {
-                                row.push(value);
-                            }
-                        });
-                        row.push(sovData.totals[period] || 0);
-                        csvRows.push(row.join(','));
-                    });
-
-                    const csvContent = csvRows.join('\n');
-                    const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                    const csvUrl = URL.createObjectURL(csvBlob);
-                    const csvLink = document.createElement('a');
-                    csvLink.download = `sov-table-${sovTableView}-${sovTableDisplayMode}-${dateStr}.csv`;
-                    csvLink.href = csvUrl;
-                    document.body.appendChild(csvLink);
-                    csvLink.click();
-                    document.body.removeChild(csvLink);
-                    URL.revokeObjectURL(csvUrl);
-                    
-                    alert('SOV Table downloaded as both SVG and CSV files!');
-                }, 500);
-                
+                alert('SOV Table downloaded as SVG file!');
                 return;
             }
 
@@ -1384,6 +1554,19 @@ const ExcelDataTransformer = () => {
             );
         }
 
+        // Calculate grand total for percentage calculations
+        const grandTotal = Object.values(sovData.totals).reduce((sum, value) => sum + value, 0);
+
+        // Calculate yearly totals by brand (for month view)
+        const yearlyBrandTotals = {};
+        if (sovTableView === 'month') {
+            sovData.brands.forEach(brand => {
+                yearlyBrandTotals[brand] = sovData.periods.reduce((sum, period) => {
+                    return sum + (sovData.data[period][brand] || 0);
+                }, 0);
+            });
+        }
+
         return (
             <div className="h-96">
                 <div className="flex justify-between items-center mb-2">
@@ -1451,10 +1634,40 @@ const ExcelDataTransformer = () => {
                                         );
                                     })}
                                     <td className="border border-gray-300 px-3 py-2 text-right font-medium">
-                                        {(sovData.totals[period] || 0).toLocaleString()}
+                                        {sovTableDisplayMode === 'percentage' 
+                                            ? `${grandTotal > 0 ? (((sovData.totals[period] || 0) / grandTotal) * 100).toFixed(2) : '0.00'}%`
+                                            : (sovData.totals[period] || 0).toLocaleString()
+                                        }
                                     </td>
                                 </tr>
                             ))}
+                            
+                            {/* Year Total Row (only for month view) */}
+                            {sovTableView === 'month' && (
+                                <tr className="bg-red-100 border-t-2 border-red-300">
+                                    <td className="border border-gray-300 px-3 py-2 font-bold text-red-800">Year Total</td>
+                                    {sovData.brands.map(brand => {
+                                        const yearTotal = yearlyBrandTotals[brand] || 0;
+                                        
+                                        let displayValue;
+                                        if (sovTableDisplayMode === 'percentage') {
+                                            const percentage = grandTotal > 0 ? ((yearTotal / grandTotal) * 100).toFixed(2) : '0.00';
+                                            displayValue = `${percentage}%`;
+                                        } else {
+                                            displayValue = yearTotal.toLocaleString();
+                                        }
+                                        
+                                        return (
+                                            <td key={brand} className="border border-gray-300 px-3 py-2 text-right font-bold text-red-800">
+                                                {displayValue}
+                                            </td>
+                                        );
+                                    })}
+                                    <td className="border border-gray-300 px-3 py-2 text-right font-bold text-red-800">
+                                        {sovTableDisplayMode === 'percentage' ? '100.00%' : grandTotal.toLocaleString()}
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -2120,6 +2333,43 @@ const ExcelDataTransformer = () => {
                         </div>
                     )}
 
+                    <div className="mb-6">
+                        <div className="space-y-2">
+                            <button
+                                onClick={saveSession}
+                                disabled={transformedData.length === 0}
+                                className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            >
+                                <span className="mr-2">▣</span>
+                                Save Session
+                            </button>
+
+                            <button
+                                onClick={loadSession}
+                                disabled={!hasSavedSession()}
+                                className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            >
+                                <span className="mr-2">◉</span>
+                                Load Session
+                            </button>
+
+                            {hasSavedSession() && (
+                                <button
+                                    onClick={clearSavedSession}
+                                    className="w-full bg-red-500 text-white py-1 px-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-center shadow-md text-sm"
+                                >
+                                    <span className="mr-2">×</span>
+                                    Delete Saved
+                                </button>
+                            )}
+                        </div>
+                        {hasSavedSession() && (
+                            <div className="mt-2 text-xs text-gray-500 text-center">
+                                ● Saved session available
+                            </div>
+                        )}
+                    </div>
+
                     <div className="pt-4 border-t border-gray-200">
                         <div className="text-xs text-gray-500">
                             <p className="mb-2 font-medium">Features:</p>
@@ -2132,6 +2382,7 @@ const ExcelDataTransformer = () => {
                                 <li>• SOV, Ad Type & Media Type analysis</li>
                                 <li>• Configurable column mapping</li>
                                 <li>• Pagination for large datasets</li>
+                                <li>• Save/Load sessions (browser storage)</li>
                             </ul>
                         </div>
                     </div>
