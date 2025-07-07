@@ -2,6 +2,10 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import * as XLSX from 'xlsx';
 
+const style = document.createElement('style');
+style.textContent = '@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");';
+document.head.appendChild(style);
+
 const ExcelDataTransformer = () => {
     const [uploadedFiles, setUploadedFiles] = useState([]);
     const [transformedData, setTransformedData] = useState([]);
@@ -802,11 +806,11 @@ const ExcelDataTransformer = () => {
                 let svgContent = `
                     <svg width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">
                         <style>
-                            .header-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #374151; }
-                            .cell-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; fill: #374151; }
-                            .number-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; fill: #374151; text-anchor: end; }
-                            .year-total-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #dc2626; }
-                            .year-total-number { font-family: Arial, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #dc2626; text-anchor: end; }
+                            .header-text { font-family: Poppins, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #374151; }
+                            .cell-text { font-family: Poppins, sans-serif; font-size: ${fontSize}px; fill: #374151; }
+                            .number-text { font-family: Poppins, sans-serif; font-size: ${fontSize}px; fill: #374151; text-anchor: end; }
+                            .year-total-text { font-family: Poppins, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #dc2626; }
+                            .year-total-number { font-family: Poppins, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #dc2626; text-anchor: end; }
                             .header-bg { fill: #f3f4f6; stroke: #d1d5db; stroke-width: 1; }
                             .cell-bg { fill: #ffffff; stroke: #d1d5db; stroke-width: 1; }
                             .alt-cell-bg { fill: #f9fafb; stroke: #d1d5db; stroke-width: 1; }
