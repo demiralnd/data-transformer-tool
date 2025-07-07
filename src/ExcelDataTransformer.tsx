@@ -925,7 +925,7 @@ const ExcelDataTransformer = () => {
                 return;
             }
 
-            // For other charts - ADD LEGENDS TO SVG DOWNLOADS - POSITION AT BOTTOM
+            // For other charts - FIXED TO MATCH DISPLAY EXACTLY
             const svgElement = document.querySelector('.recharts-wrapper svg');
             if (!svgElement) {
                 alert('Chart not found. Please make sure a chart is displayed.');
@@ -943,53 +943,55 @@ const ExcelDataTransformer = () => {
             const svgWidth = svgRect.width;
             const svgHeight = svgRect.height;
             
-            // ADD LEGEND TO THE CLONED SVG - POSITIONED AT BOTTOM
+            // FIXED: ADD LEGENDS THAT MATCH EXACTLY WHAT'S DISPLAYED
             const currentColors = COLOR_SCHEMES[colorScheme];
             let legendHTML = '';
             
             if (activeChart === 'impression') {
-                // Add legend for pie chart at bottom - CLEAN VERSION
+                // FIXED: Add legend for pie chart that matches the display exactly
                 const legendY = svgHeight - 40;
-                legendHTML = `<g transform="translate(${svgWidth/2 - 125}, ${legendY})">`;
-                // NO rectangle border and NO title
+                legendHTML = `<g transform="translate(${svgWidth/2 - (impressionChartData.length * 60)/2}, ${legendY})">`;
                 
-                // Show legend in horizontal layout
-                impressionChartData.slice(0, 4).forEach((entry, index) => {
-                    const xPos = 10 + (index * 55);
+                // Show all brands in legend, same as displayed
+                impressionChartData.forEach((entry, index) => {
+                    const xPos = index * 60;
                     legendHTML += `<rect x="${xPos}" y="10" width="12" height="12" fill="${currentColors[index % currentColors.length]}"/>`;
-                    legendHTML += `<text x="${xPos + 15}" y="22" font-family="Arial" font-size="10" fill="#333">${entry.name.substring(0, 8)}</text>`;
+                    const truncatedName = entry.name.length > 8 ? entry.name.substring(0, 8) + '...' : entry.name;
+                    legendHTML += `<text x="${xPos + 15}" y="22" font-family="Arial" font-size="10" fill="#333">${truncatedName}</text>`;
                 });
                 legendHTML += '</g>';
             } else if (activeChart === 'line') {
-                // Add legend for line chart at bottom - CLEAN VERSION
+                // FIXED: Add legend for line chart that matches the display exactly
                 const lineData = getLineChartData();
                 const brands = lineData.length > 0 ? Object.keys(lineData[0]).filter(key => key !== 'period') : [];
                 
                 const legendY = svgHeight - 40;
                 const legendWidth = Math.min(brands.length * 100, svgWidth - 40);
                 legendHTML = `<g transform="translate(${svgWidth/2 - legendWidth/2}, ${legendY})">`;
-                // NO rectangle border and NO title
                 
-                brands.slice(0, 6).forEach((brand, index) => {
-                    const xPos = 10 + (index * (legendWidth-20)/Math.min(brands.length, 6));
+                // Show exactly the same brands as displayed in the chart
+                brands.forEach((brand, index) => {
+                    const xPos = 10 + (index * (legendWidth-20)/brands.length);
                     legendHTML += `<line x1="${xPos}" y1="15" x2="${xPos + 20}" y2="15" stroke="${currentColors[index % currentColors.length]}" stroke-width="3"/>`;
-                    legendHTML += `<text x="${xPos + 25}" y="22" font-family="Arial" font-size="10" fill="#333">${brand.substring(0, 8)}</text>`;
+                    const truncatedBrand = brand.length > 10 ? brand.substring(0, 10) + '...' : brand;
+                    legendHTML += `<text x="${xPos + 25}" y="22" font-family="Arial" font-size="10" fill="#333">${truncatedBrand}</text>`;
                 });
                 legendHTML += '</g>';
             } else if (activeChart === 'adtype' || activeChart === 'mediatype') {
-                // Add legend for bar charts at bottom - NO TITLE OR RECTANGLE
+                // FIXED: Add legend for bar charts that matches the display exactly
                 const chartData = activeChart === 'adtype' ? getAdTypeChartData() : getMediaTypeChartData();
                 const dataKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'name' && !key.includes('Value') && key !== 'isOthers' && key !== 'otherBrands') : [];
                 
-                const legendY = svgHeight - 40; // Smaller height since no title
+                const legendY = svgHeight - 40;
                 const legendWidth = Math.min(dataKeys.length * 120, svgWidth - 40);
                 legendHTML = `<g transform="translate(${svgWidth/2 - legendWidth/2}, ${legendY})">`;
-                // NO rectangle border and NO title text
                 
+                // Show exactly the same data keys as displayed in the chart
                 dataKeys.forEach((key, index) => {
                     const xPos = 10 + (index * (legendWidth-20)/dataKeys.length);
                     legendHTML += `<rect x="${xPos}" y="10" width="15" height="15" fill="${currentColors[index % currentColors.length]}"/>`;
-                    legendHTML += `<text x="${xPos + 20}" y="22" font-family="Arial" font-size="12" fill="#333">${key}</text>`;
+                    const truncatedKey = key.length > 12 ? key.substring(0, 12) + '...' : key;
+                    legendHTML += `<text x="${xPos + 20}" y="22" font-family="Arial" font-size="12" fill="#333">${truncatedKey}</text>`;
                 });
                 legendHTML += '</g>';
             }
