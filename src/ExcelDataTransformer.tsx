@@ -1581,7 +1581,7 @@ const ExcelDataTransformer = () => {
                             angle={-45}
                             textAnchor="end"
                             height={80}
-                            tick={{ fontSize: 11 }}
+                            tick={{ fontSize: 14 }}
                         />
                         <YAxis 
                             tick={{ fontSize: 12 }}
@@ -1876,14 +1876,14 @@ const ExcelDataTransformer = () => {
                             Showing {adTypeData.length} brands with ad type data (100% stacked bars based on impressions)
                         </div>
                         <ResponsiveContainer width="100%" height="85%">
-                            <BarChart data={adTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                            <BarChart data={adTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 30 }}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis
                                     dataKey="name"
                                     angle={-45}
                                     textAnchor="end"
                                     height={80}
-                                    tick={{ fontSize: 11 }}
+                                    tick={{ fontSize: 14 }}
                                     interval={0}
                                 />
                                 <YAxis
@@ -1960,14 +1960,14 @@ const ExcelDataTransformer = () => {
                             Showing {mediaTypeData.length} brands with media type data (100% stacked bars based on impressions)
                         </div>
                         <ResponsiveContainer width="100%" height="85%">
-                            <BarChart data={mediaTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                            <BarChart data={mediaTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 30 }}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis
                                     dataKey="name"
                                     angle={-45}
                                     textAnchor="end"
                                     height={80}
-                                    tick={{ fontSize: 11 }}
+                                    tick={{ fontSize: 14 }}
                                     interval={0}
                                 />
                                 <YAxis
