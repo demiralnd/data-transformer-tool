@@ -25,6 +25,16 @@ const ExcelDataTransformer = () => {
     const [columnDisplayNames, setColumnDisplayNames] = useState({});
     const [showColumnConfig, setShowColumnConfig] = useState(false);
     
+    // Chart titles state
+    const [chartTitles, setChartTitles] = useState({
+        impression: 'Share of Voice (SOV) - Impression Distribution',
+        line: 'Brand Impression Trends',
+        sovtable: 'SOV Table',
+        adtype: 'Ad Type Distribution by Brand',
+        mediatype: 'Media Type Distribution by Brand'
+    });
+    const [editingTitle, setEditingTitle] = useState(false);
+    
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(50);
@@ -589,6 +599,26 @@ const ExcelDataTransformer = () => {
         });
     };
 
+    const getChartTitle = () => {
+        let baseTitle = chartTitles[activeChart];
+        
+        // Add dynamic parts for specific charts
+        if (activeChart === 'line') {
+            baseTitle += ` by ${trendLineView === 'year' ? 'Year' : 'Month'}`;
+        } else if (activeChart === 'sovtable') {
+            baseTitle += ` - ${sovTableDisplayMode === 'percentage' ? 'Percentage' : 'Impression'} by ${sovTableView === 'year' ? 'Year' : 'Month'}`;
+        }
+        
+        return baseTitle;
+    };
+
+    const handleChartTitleEdit = (newTitle) => {
+        setChartTitles(prev => ({
+            ...prev,
+            [activeChart]: newTitle
+        }));
+    };
+
     const clearAllFilters = () => {
         setChartFilters({
             fileNames: [],
@@ -609,28 +639,23 @@ const ExcelDataTransformer = () => {
     const copyChartData = async () => {
         try {
             let chartData = [];
-            let title = '';
+            let title = getChartTitle();
 
             switch (activeChart) {
                 case 'impression':
                     chartData = impressionChartData;
-                    title = 'Share of Voice (SOV) - Impression Distribution';
                     break;
                 case 'adtype':
                     chartData = getAdTypeChartData();
-                    title = 'Ad Type Distribution by Brand';
                     break;
                 case 'mediatype':
                     chartData = getMediaTypeChartData();
-                    title = 'Media Type Distribution by Brand';
                     break;
                 case 'line':
                     chartData = getLineChartData();
-                    title = `Brand Impression Trends by ${trendLineView === 'year' ? 'Year' : 'Month'}`;
                     break;
                 case 'sovtable':
                     const sovData = getSovTableData();
-                    title = `SOV ${sovTableDisplayMode === 'percentage' ? 'Percentage' : 'Impression'} Table by ${sovTableView === 'year' ? 'Year' : 'Month'}`;
                     // Handle table data differently
                     let sovExcelData = [title, ''];
                     sovExcelData.push([sovTableView === 'year' ? 'Year' : 'Month', ...sovData.brands, 'Total'].join('\t'));
@@ -767,6 +792,7 @@ const ExcelDataTransformer = () => {
                 }
 
                 const dateStr = new Date().toISOString().split('T')[0];
+                const chartTitle = getChartTitle();
                 
                 // Calculate grand total for percentage calculations
                 const grandTotal = Object.values(sovData.totals).reduce((sum, value) => sum + value, 0);
@@ -1872,22 +1898,23 @@ const ExcelDataTransformer = () => {
                             Showing {adTypeData.length} brands with ad type data (100% stacked bars based on impressions)
                         </div>
                         <ResponsiveContainer width="100%" height="85%">
-                            <BarChart data={adTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                            <BarChart 
+                                data={adTypeData} 
+                                layout="horizontal"
+                                margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
+                            >
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis
-                                    dataKey="name"
-                                    angle={-45}
-                                    textAnchor="end"
-                                    height={80}
-                                    tick={{ fontSize: 11 }}
-                                    interval={0}
-                                />
-                                <YAxis
+                                    type="number"
                                     domain={[0, 100]}
                                     tick={{ fontSize: 12 }}
-                                    ticks={[0, 20, 40, 60, 80, 100]}
                                     tickFormatter={(value) => `${value}%`}
-
+                                />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    tick={{ fontSize: 11 }}
+                                    width={110}
                                 />
                                 <Tooltip
                                     formatter={(value, name, props) => {
@@ -1956,22 +1983,23 @@ const ExcelDataTransformer = () => {
                             Showing {mediaTypeData.length} brands with media type data (100% stacked bars based on impressions)
                         </div>
                         <ResponsiveContainer width="100%" height="85%">
-                            <BarChart data={mediaTypeData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                            <BarChart 
+                                data={mediaTypeData} 
+                                layout="horizontal"
+                                margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
+                            >
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis
-                                    dataKey="name"
-                                    angle={-45}
-                                    textAnchor="end"
-                                    height={80}
-                                    tick={{ fontSize: 11 }}
-                                    interval={0}
-                                />
-                                <YAxis
+                                    type="number"
                                     domain={[0, 100]}
                                     tick={{ fontSize: 12 }}
-                                    ticks={[0, 20, 40, 60, 80, 100]}
                                     tickFormatter={(value) => `${value}%`}
-
+                                />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    tick={{ fontSize: 11 }}
+                                    width={110}
                                 />
                                 <Tooltip
                                     formatter={(value, name, props) => {
@@ -2841,13 +2869,38 @@ const ExcelDataTransformer = () => {
                             {renderFilters()}
 
                             <div className="chart-container">
-                                <h3 className="text-lg font-semibold mb-4">
-                                    {activeChart === 'impression' && 'Share of Voice (SOV) - Impression Distribution'}
-                                    {activeChart === 'line' && `Brand Impression Trends by ${trendLineView === 'year' ? 'Year' : 'Month'}`}
-                                    {activeChart === 'sovtable' && `SOV ${sovTableDisplayMode === 'percentage' ? 'Percentage' : 'Impression'} Table by ${sovTableView === 'year' ? 'Year' : 'Month'} and Brand`}
-                                    {activeChart === 'adtype' && 'Ad Type Distribution by Brand (Based on Impressions)'}
-                                    {activeChart === 'mediatype' && 'Media Type Distribution by Brand (Based on Impressions)'}
-                                </h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    {editingTitle ? (
+                                        <input
+                                            type="text"
+                                            value={chartTitles[activeChart]}
+                                            onChange={(e) => handleChartTitleEdit(e.target.value)}
+                                            onBlur={() => setEditingTitle(false)}
+                                            onKeyPress={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    setEditingTitle(false);
+                                                }
+                                            }}
+                                            className="text-lg font-semibold bg-red-50 border border-red-300 rounded px-2 py-1 focus:outline-none focus:bg-red-100"
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <h3 
+                                            className="text-lg font-semibold cursor-pointer hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                                            onClick={() => setEditingTitle(true)}
+                                            title="Click to edit title"
+                                        >
+                                            {getChartTitle()}
+                                        </h3>
+                                    )}
+                                    <button
+                                        onClick={() => setEditingTitle(true)}
+                                        className="text-sm text-red-500 hover:text-red-700 ml-2"
+                                        title="Edit chart title"
+                                    >
+                                        ✎
+                                    </button>
+                                </div>
                                 {renderChart()}
                             </div>
                         </div>
