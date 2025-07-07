@@ -787,11 +787,11 @@ const ExcelDataTransformer = () => {
                 }
                 
                 // Create and download SVG
-                const cellWidth = 120; // Increased width for impression numbers
+                const cellWidth = 140; // Increased width for better fitting
                 const cellHeight = 30;
                 const headerHeight = 35;
-                const padding = 8;
-                const fontSize = 12;
+                const padding = 10; // Increased padding
+                const fontSize = 11; // Slightly smaller font for better fit
                 
                 const numCols = sovData.brands.length + 2; // period + brands + total
                 const numRows = sovData.periods.length + 1 + (sovTableView === 'month' ? 1 : 0); // data rows + header + year total (if month view)
@@ -805,9 +805,12 @@ const ExcelDataTransformer = () => {
                             .header-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #374151; }
                             .cell-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; fill: #374151; }
                             .number-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; fill: #374151; text-anchor: end; }
+                            .year-total-text { font-family: Arial, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #dc2626; }
+                            .year-total-number { font-family: Arial, sans-serif; font-size: ${fontSize}px; font-weight: bold; fill: #dc2626; text-anchor: end; }
                             .header-bg { fill: #f3f4f6; stroke: #d1d5db; stroke-width: 1; }
                             .cell-bg { fill: #ffffff; stroke: #d1d5db; stroke-width: 1; }
                             .alt-cell-bg { fill: #f9fafb; stroke: #d1d5db; stroke-width: 1; }
+                            .year-total-bg { fill: #fef2f2; stroke: #dc2626; stroke-width: 2; }
                         </style>
                 `;
 
@@ -822,7 +825,7 @@ const ExcelDataTransformer = () => {
                 // Brand headers
                 sovData.brands.forEach(brand => {
                     svgContent += `<rect x="${x}" y="0" width="${cellWidth}" height="${headerHeight}" class="header-bg"/>`;
-                    const truncatedBrand = brand.length > 12 ? brand.substring(0, 12) + '...' : brand;
+                    const truncatedBrand = brand.length > 15 ? brand.substring(0, 15) + '...' : brand;
                     svgContent += `<text x="${x + padding}" y="${headerHeight/2 + 4}" class="header-text">${truncatedBrand}</text>`;
                     x += cellWidth;
                 });
@@ -875,17 +878,16 @@ const ExcelDataTransformer = () => {
                     y += cellHeight;
                 });
 
-                // Add Year Total row (only for month view) - FIXED CALCULATION
+                // Add Year Total row (only for month view) - FIXED STYLING AND LAYOUT
                 if (sovTableView === 'month') {
                     x = 0;
-                    const cellClass = 'header-bg'; // Use header style for year total
                     
                     // Year Total label cell
-                    svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
-                    svgContent += `<text x="${x + padding}" y="${y + cellHeight/2 + 4}" class="header-text">Year Total</text>`;
+                    svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="year-total-bg"/>`;
+                    svgContent += `<text x="${x + padding}" y="${y + cellHeight/2 + 4}" class="year-total-text">Year Total</text>`;
                     x += cellWidth;
                     
-                    // Brand yearly total cells - FIXED CALCULATION
+                    // Brand yearly total cells - FIXED CALCULATION AND STYLING
                     sovData.brands.forEach(brand => {
                         const yearTotal = yearlyBrandTotals[brand] || 0;
                         
@@ -897,15 +899,15 @@ const ExcelDataTransformer = () => {
                             displayValue = yearTotal.toLocaleString();
                         }
                         
-                        svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
-                        svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="header-text">${displayValue}</text>`;
+                        svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="year-total-bg"/>`;
+                        svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="year-total-number">${displayValue}</text>`;
                         x += cellWidth;
                     });
                     
                     // Year total - total cell
-                    svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="${cellClass}"/>`;
+                    svgContent += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" class="year-total-bg"/>`;
                     const yearTotalDisplay = sovTableDisplayMode === 'percentage' ? '100.00%' : grandTotal.toLocaleString();
-                    svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="header-text">${yearTotalDisplay}</text>`;
+                    svgContent += `<text x="${x + cellWidth - padding}" y="${y + cellHeight/2 + 4}" class="year-total-number">${yearTotalDisplay}</text>`;
                 }
 
                 svgContent += '</svg>';
@@ -947,20 +949,8 @@ const ExcelDataTransformer = () => {
             const currentColors = COLOR_SCHEMES[colorScheme];
             let legendHTML = '';
             
-            if (activeChart === 'impression') {
-                // FIXED: Add legend for pie chart that matches the display exactly
-                const legendY = svgHeight - 40;
-                legendHTML = `<g transform="translate(${svgWidth/2 - (impressionChartData.length * 60)/2}, ${legendY})">`;
-                
-                // Show all brands in legend, same as displayed
-                impressionChartData.forEach((entry, index) => {
-                    const xPos = index * 60;
-                    legendHTML += `<rect x="${xPos}" y="10" width="12" height="12" fill="${currentColors[index % currentColors.length]}"/>`;
-                    const truncatedName = entry.name.length > 8 ? entry.name.substring(0, 8) + '...' : entry.name;
-                    legendHTML += `<text x="${xPos + 15}" y="22" font-family="Arial" font-size="10" fill="#333">${truncatedName}</text>`;
-                });
-                legendHTML += '</g>';
-            } else if (activeChart === 'line') {
+            // NO LEGEND for impression/pie chart since brand names are shown on the pie itself
+            if (activeChart === 'line') {
                 // FIXED: Add legend for line chart that matches the display exactly
                 const lineData = getLineChartData();
                 const brands = lineData.length > 0 ? Object.keys(lineData[0]).filter(key => key !== 'period') : [];
