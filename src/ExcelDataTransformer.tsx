@@ -638,13 +638,20 @@ const ExcelDataTransformer = () => {
                     // Calculate grand total for percentage calculations
                     const grandTotal = Object.values(sovData.totals).reduce((sum, value) => sum + value, 0);
                     
-                    // Calculate yearly totals by brand (for month view)
+                    // Calculate yearly totals by brand (for month view) - FIXED CALCULATION
                     const yearlyBrandTotals = {};
                     if (sovTableView === 'month') {
+                        // Initialize all brands to 0
                         sovData.brands.forEach(brand => {
-                            yearlyBrandTotals[brand] = sovData.periods.reduce((sum, period) => {
-                                return sum + (sovData.data[period][brand] || 0);
-                            }, 0);
+                            yearlyBrandTotals[brand] = 0;
+                        });
+                        
+                        // Sum up all periods for each brand
+                        sovData.periods.forEach(period => {
+                            sovData.brands.forEach(brand => {
+                                const brandValue = sovData.data[period] && sovData.data[period][brand] ? sovData.data[period][brand] : 0;
+                                yearlyBrandTotals[brand] += brandValue;
+                            });
                         });
                     }
                     
@@ -766,13 +773,20 @@ const ExcelDataTransformer = () => {
                 // Calculate grand total for percentage calculations
                 const grandTotal = Object.values(sovData.totals).reduce((sum, value) => sum + value, 0);
                 
-                // Calculate yearly totals by brand (for month view) - FIX THIS CALCULATION
+                // Calculate yearly totals by brand (for month view) - FIXED CALCULATION
                 const yearlyBrandTotals = {};
                 if (sovTableView === 'month') {
+                    // Initialize all brands to 0
                     sovData.brands.forEach(brand => {
-                        yearlyBrandTotals[brand] = sovData.periods.reduce((sum, period) => {
-                            return sum + (sovData.data[period][brand] || 0);
-                        }, 0);
+                        yearlyBrandTotals[brand] = 0;
+                    });
+                    
+                    // Sum up all periods for each brand
+                    sovData.periods.forEach(period => {
+                        sovData.brands.forEach(brand => {
+                            const brandValue = sovData.data[period] && sovData.data[period][brand] ? sovData.data[period][brand] : 0;
+                            yearlyBrandTotals[brand] += brandValue;
+                        });
                     });
                 }
                 
@@ -915,7 +929,7 @@ const ExcelDataTransformer = () => {
                 return;
             }
 
-            // For other charts - ADD LEGENDS TO SVG DOWNLOADS
+            // For other charts - ADD LEGENDS TO SVG DOWNLOADS - POSITION AT BOTTOM
             const svgElement = document.querySelector('.recharts-wrapper svg');
             if (!svgElement) {
                 alert('Chart not found. Please make sure a chart is displayed.');
@@ -928,50 +942,61 @@ const ExcelDataTransformer = () => {
             // Set white background
             svgClone.style.backgroundColor = 'white';
             
-            // ADD LEGEND TO THE CLONED SVG
+            // Get SVG dimensions
+            const svgRect = svgElement.getBoundingClientRect();
+            const svgWidth = svgRect.width;
+            const svgHeight = svgRect.height;
+            
+            // ADD LEGEND TO THE CLONED SVG - POSITIONED AT BOTTOM
             const currentColors = COLOR_SCHEMES[colorScheme];
             let legendHTML = '';
             
             if (activeChart === 'impression') {
-                // Add legend for pie chart
-                legendHTML = '<g transform="translate(20, 20)">';
-                legendHTML += '<rect x="0" y="0" width="250" height="' + (impressionChartData.length * 20 + 30) + '" fill="white" stroke="#ccc" stroke-width="1" rx="5"/>';
-                legendHTML += '<text x="10" y="20" font-family="Arial" font-size="14" font-weight="bold" fill="#333">Brand Legend</text>';
+                // Add legend for pie chart at bottom
+                const legendY = svgHeight - 60; // Position near bottom
+                legendHTML = `<g transform="translate(${svgWidth/2 - 125}, ${legendY})">`;
+                legendHTML += '<rect x="0" y="0" width="250" height="50" fill="white" stroke="#ccc" stroke-width="1" rx="5"/>';
+                legendHTML += '<text x="125" y="15" font-family="Arial" font-size="12" font-weight="bold" fill="#333" text-anchor="middle">Brand Legend</text>';
                 
-                impressionChartData.forEach((entry, index) => {
-                    const yPos = 40 + (index * 20);
-                    legendHTML += `<rect x="10" y="${yPos - 10}" width="15" height="15" fill="${currentColors[index % currentColors.length]}"/>`;
-                    legendHTML += `<text x="30" y="${yPos}" font-family="Arial" font-size="12" fill="#333">${entry.name} (${entry.percentage}%)</text>`;
+                // Show legend in horizontal layout
+                impressionChartData.slice(0, 4).forEach((entry, index) => {
+                    const xPos = 10 + (index * 55);
+                    legendHTML += `<rect x="${xPos}" y="25" width="12" height="12" fill="${currentColors[index % currentColors.length]}"/>`;
+                    legendHTML += `<text x="${xPos + 15}" y="35" font-family="Arial" font-size="10" fill="#333">${entry.name.substring(0, 8)}</text>`;
                 });
                 legendHTML += '</g>';
             } else if (activeChart === 'line') {
-                // Add legend for line chart
+                // Add legend for line chart at bottom
                 const lineData = getLineChartData();
                 const brands = lineData.length > 0 ? Object.keys(lineData[0]).filter(key => key !== 'period') : [];
                 
-                legendHTML = '<g transform="translate(20, 20)">';
-                legendHTML += '<rect x="0" y="0" width="200" height="' + (brands.length * 20 + 30) + '" fill="white" stroke="#ccc" stroke-width="1" rx="5"/>';
-                legendHTML += '<text x="10" y="20" font-family="Arial" font-size="14" font-weight="bold" fill="#333">Brand Legend</text>';
+                const legendY = svgHeight - 60;
+                const legendWidth = Math.min(brands.length * 100, svgWidth - 40);
+                legendHTML = `<g transform="translate(${svgWidth/2 - legendWidth/2}, ${legendY})">`;
+                legendHTML += `<rect x="0" y="0" width="${legendWidth}" height="50" fill="white" stroke="#ccc" stroke-width="1" rx="5"/>`;
+                legendHTML += `<text x="${legendWidth/2}" y="15" font-family="Arial" font-size="12" font-weight="bold" fill="#333" text-anchor="middle">Brand Legend</text>`;
                 
-                brands.forEach((brand, index) => {
-                    const yPos = 40 + (index * 20);
-                    legendHTML += `<line x1="10" y1="${yPos - 5}" x2="25" y2="${yPos - 5}" stroke="${currentColors[index % currentColors.length]}" stroke-width="3"/>`;
-                    legendHTML += `<text x="30" y="${yPos}" font-family="Arial" font-size="12" fill="#333">${brand}</text>`;
+                brands.slice(0, 6).forEach((brand, index) => {
+                    const xPos = 10 + (index * (legendWidth-20)/Math.min(brands.length, 6));
+                    legendHTML += `<line x1="${xPos}" y1="30" x2="${xPos + 20}" y2="30" stroke="${currentColors[index % currentColors.length]}" stroke-width="3"/>`;
+                    legendHTML += `<text x="${xPos + 25}" y="35" font-family="Arial" font-size="10" fill="#333">${brand.substring(0, 8)}</text>`;
                 });
                 legendHTML += '</g>';
             } else if (activeChart === 'adtype' || activeChart === 'mediatype') {
-                // Add legend for bar charts
+                // Add legend for bar charts at bottom
                 const chartData = activeChart === 'adtype' ? getAdTypeChartData() : getMediaTypeChartData();
                 const dataKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'name' && !key.includes('Value') && key !== 'isOthers' && key !== 'otherBrands') : [];
                 
-                legendHTML = '<g transform="translate(20, 20)">';
-                legendHTML += '<rect x="0" y="0" width="200" height="' + (dataKeys.length * 20 + 30) + '" fill="white" stroke="#ccc" stroke-width="1" rx="5"/>';
-                legendHTML += `<text x="10" y="20" font-family="Arial" font-size="14" font-weight="bold" fill="#333">${activeChart === 'adtype' ? 'Ad Type' : 'Media Type'} Legend</text>`;
+                const legendY = svgHeight - 60;
+                const legendWidth = Math.min(dataKeys.length * 120, svgWidth - 40);
+                legendHTML = `<g transform="translate(${svgWidth/2 - legendWidth/2}, ${legendY})">`;
+                legendHTML += `<rect x="0" y="0" width="${legendWidth}" height="50" fill="white" stroke="#ccc" stroke-width="1" rx="5"/>`;
+                legendHTML += `<text x="${legendWidth/2}" y="15" font-family="Arial" font-size="12" font-weight="bold" fill="#333" text-anchor="middle">${activeChart === 'adtype' ? 'Ad Type' : 'Media Type'} Legend</text>`;
                 
                 dataKeys.forEach((key, index) => {
-                    const yPos = 40 + (index * 20);
-                    legendHTML += `<rect x="10" y="${yPos - 10}" width="15" height="15" fill="${currentColors[index % currentColors.length]}"/>`;
-                    legendHTML += `<text x="30" y="${yPos}" font-family="Arial" font-size="12" fill="#333">${key}</text>`;
+                    const xPos = 10 + (index * (legendWidth-20)/dataKeys.length);
+                    legendHTML += `<rect x="${xPos}" y="25" width="15" height="15" fill="${currentColors[index % currentColors.length]}"/>`;
+                    legendHTML += `<text x="${xPos + 20}" y="35" font-family="Arial" font-size="10" fill="#333">${key}</text>`;
                 });
                 legendHTML += '</g>';
             }
