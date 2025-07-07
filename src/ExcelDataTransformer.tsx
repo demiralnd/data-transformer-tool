@@ -829,7 +829,7 @@ const ExcelDataTransformer = () => {
                 // Brand headers
                 sovData.brands.forEach(brand => {
                     svgContent += `<rect x="${x}" y="0" width="${cellWidth}" height="${headerHeight}" class="header-bg"/>`;
-                    const truncatedBrand = brand.length > 15 ? brand.substring(0, 15) + '...' : brand;
+                    const truncatedBrand = brand.length > 20 ? brand.substring(0, 20) + '...' : brand;
                     svgContent += `<text x="${x + padding}" y="${headerHeight/2 + 4}" class="header-text">${truncatedBrand}</text>`;
                     x += cellWidth;
                 });
@@ -2212,7 +2212,7 @@ const ExcelDataTransformer = () => {
                                     <input
                                         type="range"
                                         min="3"
-                                        max="15"
+                                        max="20"
                                         value={maxBrandsInAdTypeChart}
                                         onChange={(e) => setMaxBrandsInAdTypeChart(parseInt(e.target.value))}
                                         className="w-full accent-red-500"
@@ -2233,7 +2233,7 @@ const ExcelDataTransformer = () => {
                                     <input
                                         type="range"
                                         min="3"
-                                        max="15"
+                                        max="20"
                                         value={maxBrandsInMediaTypeChart}
                                         onChange={(e) => setMaxBrandsInMediaTypeChart(parseInt(e.target.value))}
                                         className="w-full accent-red-500"
