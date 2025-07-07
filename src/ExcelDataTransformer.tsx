@@ -1581,7 +1581,7 @@ const ExcelDataTransformer = () => {
                             angle={-45}
                             textAnchor="end"
                             height={80}
-                            tick={{ fontSize: 14 }}
+                            tick={{ fontSize: 16 }}
                         />
                         <YAxis 
                             tick={{ fontSize: 12 }}
@@ -1883,7 +1883,7 @@ const ExcelDataTransformer = () => {
                                     angle={-45}
                                     textAnchor="end"
                                     height={80}
-                                    tick={{ fontSize: 14 }}
+                                    tick={{ fontSize: 16 }}
                                     interval={0}
                                 />
                                 <YAxis
@@ -1967,7 +1967,7 @@ const ExcelDataTransformer = () => {
                                     angle={-45}
                                     textAnchor="end"
                                     height={80}
-                                    tick={{ fontSize: 14 }}
+                                    tick={{ fontSize: 16 }}
                                     interval={0}
                                 />
                                 <YAxis
