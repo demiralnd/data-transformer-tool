@@ -638,20 +638,18 @@ const ExcelDataTransformer = () => {
                     // Calculate grand total for percentage calculations
                     const grandTotal = Object.values(sovData.totals).reduce((sum, value) => sum + value, 0);
                     
-                    // Calculate yearly totals by brand (for month view) - FIXED CALCULATION
+                    // Calculate yearly totals by brand (for month view) - COMPLETELY FIXED
                     const yearlyBrandTotals = {};
                     if (sovTableView === 'month') {
-                        // Initialize all brands to 0
                         sovData.brands.forEach(brand => {
-                            yearlyBrandTotals[brand] = 0;
-                        });
-                        
-                        // Sum up all periods for each brand
-                        sovData.periods.forEach(period => {
-                            sovData.brands.forEach(brand => {
-                                const brandValue = sovData.data[period] && sovData.data[period][brand] ? sovData.data[period][brand] : 0;
-                                yearlyBrandTotals[brand] += brandValue;
+                            let brandYearTotal = 0;
+                            sovData.periods.forEach(period => {
+                                // Make sure we access the data correctly
+                                if (sovData.data[period] && sovData.data[period][brand] !== undefined) {
+                                    brandYearTotal += sovData.data[period][brand];
+                                }
                             });
+                            yearlyBrandTotals[brand] = brandYearTotal;
                         });
                     }
                     
@@ -773,20 +771,18 @@ const ExcelDataTransformer = () => {
                 // Calculate grand total for percentage calculations
                 const grandTotal = Object.values(sovData.totals).reduce((sum, value) => sum + value, 0);
                 
-                // Calculate yearly totals by brand (for month view) - FIXED CALCULATION
+                // Calculate yearly totals by brand (for month view) - COMPLETELY FIXED
                 const yearlyBrandTotals = {};
                 if (sovTableView === 'month') {
-                    // Initialize all brands to 0
                     sovData.brands.forEach(brand => {
-                        yearlyBrandTotals[brand] = 0;
-                    });
-                    
-                    // Sum up all periods for each brand
-                    sovData.periods.forEach(period => {
-                        sovData.brands.forEach(brand => {
-                            const brandValue = sovData.data[period] && sovData.data[period][brand] ? sovData.data[period][brand] : 0;
-                            yearlyBrandTotals[brand] += brandValue;
+                        let brandYearTotal = 0;
+                        sovData.periods.forEach(period => {
+                            // Make sure we access the data correctly
+                            if (sovData.data[period] && sovData.data[period][brand] !== undefined) {
+                                brandYearTotal += sovData.data[period][brand];
+                            }
                         });
+                        yearlyBrandTotals[brand] = brandYearTotal;
                     });
                 }
                 
@@ -952,51 +948,48 @@ const ExcelDataTransformer = () => {
             let legendHTML = '';
             
             if (activeChart === 'impression') {
-                // Add legend for pie chart at bottom
-                const legendY = svgHeight - 60; // Position near bottom
+                // Add legend for pie chart at bottom - CLEAN VERSION
+                const legendY = svgHeight - 40;
                 legendHTML = `<g transform="translate(${svgWidth/2 - 125}, ${legendY})">`;
-                legendHTML += '<rect x="0" y="0" width="250" height="50" fill="white" stroke="#ccc" stroke-width="1" rx="5"/>';
-                legendHTML += '<text x="125" y="15" font-family="Arial" font-size="12" font-weight="bold" fill="#333" text-anchor="middle">Brand Legend</text>';
+                // NO rectangle border and NO title
                 
                 // Show legend in horizontal layout
                 impressionChartData.slice(0, 4).forEach((entry, index) => {
                     const xPos = 10 + (index * 55);
-                    legendHTML += `<rect x="${xPos}" y="25" width="12" height="12" fill="${currentColors[index % currentColors.length]}"/>`;
-                    legendHTML += `<text x="${xPos + 15}" y="35" font-family="Arial" font-size="10" fill="#333">${entry.name.substring(0, 8)}</text>`;
+                    legendHTML += `<rect x="${xPos}" y="10" width="12" height="12" fill="${currentColors[index % currentColors.length]}"/>`;
+                    legendHTML += `<text x="${xPos + 15}" y="22" font-family="Arial" font-size="10" fill="#333">${entry.name.substring(0, 8)}</text>`;
                 });
                 legendHTML += '</g>';
             } else if (activeChart === 'line') {
-                // Add legend for line chart at bottom
+                // Add legend for line chart at bottom - CLEAN VERSION
                 const lineData = getLineChartData();
                 const brands = lineData.length > 0 ? Object.keys(lineData[0]).filter(key => key !== 'period') : [];
                 
-                const legendY = svgHeight - 60;
+                const legendY = svgHeight - 40;
                 const legendWidth = Math.min(brands.length * 100, svgWidth - 40);
                 legendHTML = `<g transform="translate(${svgWidth/2 - legendWidth/2}, ${legendY})">`;
-                legendHTML += `<rect x="0" y="0" width="${legendWidth}" height="50" fill="white" stroke="#ccc" stroke-width="1" rx="5"/>`;
-                legendHTML += `<text x="${legendWidth/2}" y="15" font-family="Arial" font-size="12" font-weight="bold" fill="#333" text-anchor="middle">Brand Legend</text>`;
+                // NO rectangle border and NO title
                 
                 brands.slice(0, 6).forEach((brand, index) => {
                     const xPos = 10 + (index * (legendWidth-20)/Math.min(brands.length, 6));
-                    legendHTML += `<line x1="${xPos}" y1="30" x2="${xPos + 20}" y2="30" stroke="${currentColors[index % currentColors.length]}" stroke-width="3"/>`;
-                    legendHTML += `<text x="${xPos + 25}" y="35" font-family="Arial" font-size="10" fill="#333">${brand.substring(0, 8)}</text>`;
+                    legendHTML += `<line x1="${xPos}" y1="15" x2="${xPos + 20}" y2="15" stroke="${currentColors[index % currentColors.length]}" stroke-width="3"/>`;
+                    legendHTML += `<text x="${xPos + 25}" y="22" font-family="Arial" font-size="10" fill="#333">${brand.substring(0, 8)}</text>`;
                 });
                 legendHTML += '</g>';
             } else if (activeChart === 'adtype' || activeChart === 'mediatype') {
-                // Add legend for bar charts at bottom
+                // Add legend for bar charts at bottom - NO TITLE OR RECTANGLE
                 const chartData = activeChart === 'adtype' ? getAdTypeChartData() : getMediaTypeChartData();
                 const dataKeys = chartData.length > 0 ? Object.keys(chartData[0]).filter(key => key !== 'name' && !key.includes('Value') && key !== 'isOthers' && key !== 'otherBrands') : [];
                 
-                const legendY = svgHeight - 60;
+                const legendY = svgHeight - 40; // Smaller height since no title
                 const legendWidth = Math.min(dataKeys.length * 120, svgWidth - 40);
                 legendHTML = `<g transform="translate(${svgWidth/2 - legendWidth/2}, ${legendY})">`;
-                legendHTML += `<rect x="0" y="0" width="${legendWidth}" height="50" fill="white" stroke="#ccc" stroke-width="1" rx="5"/>`;
-                legendHTML += `<text x="${legendWidth/2}" y="15" font-family="Arial" font-size="12" font-weight="bold" fill="#333" text-anchor="middle">${activeChart === 'adtype' ? 'Ad Type' : 'Media Type'} Legend</text>`;
+                // NO rectangle border and NO title text
                 
                 dataKeys.forEach((key, index) => {
                     const xPos = 10 + (index * (legendWidth-20)/dataKeys.length);
-                    legendHTML += `<rect x="${xPos}" y="25" width="15" height="15" fill="${currentColors[index % currentColors.length]}"/>`;
-                    legendHTML += `<text x="${xPos + 20}" y="35" font-family="Arial" font-size="10" fill="#333">${key}</text>`;
+                    legendHTML += `<rect x="${xPos}" y="10" width="15" height="15" fill="${currentColors[index % currentColors.length]}"/>`;
+                    legendHTML += `<text x="${xPos + 20}" y="22" font-family="Arial" font-size="12" fill="#333">${key}</text>`;
                 });
                 legendHTML += '</g>';
             }
@@ -1648,13 +1641,18 @@ const ExcelDataTransformer = () => {
         // Calculate grand total for percentage calculations
         const grandTotal = Object.values(sovData.totals).reduce((sum, value) => sum + value, 0);
 
-        // Calculate yearly totals by brand (for month view)
+        // Calculate yearly totals by brand (for month view) - COMPLETELY FIXED
         const yearlyBrandTotals = {};
         if (sovTableView === 'month') {
             sovData.brands.forEach(brand => {
-                yearlyBrandTotals[brand] = sovData.periods.reduce((sum, period) => {
-                    return sum + (sovData.data[period][brand] || 0);
-                }, 0);
+                let brandYearTotal = 0;
+                sovData.periods.forEach(period => {
+                    // Make sure we access the data correctly
+                    if (sovData.data[period] && sovData.data[period][brand] !== undefined) {
+                        brandYearTotal += sovData.data[period][brand];
+                    }
+                });
+                yearlyBrandTotals[brand] = brandYearTotal;
             });
         }
 
