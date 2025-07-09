@@ -2020,7 +2020,7 @@ const ExcelDataTransformer = () => {
             <div className="mb-4">
                 <button
                     onClick={() => setShowColumnConfig(!showColumnConfig)}
-                    className="w-full bg-gradient-to-r from-[#FF3534] from-80% to-[#F585DA] text-white py-3 px-4 mb-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-between shadow-md"
+                    className="w-full bg-gradient-to-r from-[#FF3534] from-70% to-[#F585DA] text-white py-3 px-4 mb-4 rounded-lg hover:bg-red-600 transition-all duration-200 flex items-center justify-between shadow-md"
                 >
                     <div className="flex items-center">
                         <span className="mr-2">⚙</span>
@@ -2475,7 +2475,7 @@ const ExcelDataTransformer = () => {
             </div>
 
             <div className="w-3/4 p-6 overflow-auto">
-                <div className="flex justify-between items-center mb-2 bg-gradient-to-r from-[#FF3534] from-80% to-[#F585DA] p-4 rounded-lg shadow-sm border">
+                <div className="flex justify-between items-center mb-2 bg-gradient-to-r from-[#FF3534] from-70% to-[#F585DA] p-4 rounded-lg shadow-sm border">
                     <div>
                         <h1 className="text-2xl font-bold text-white">
                             Full Color Data
