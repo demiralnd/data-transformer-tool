@@ -103,6 +103,7 @@ const ExcelDataTransformer = () => {
         'lake': ['#3197EE', '#2C88D5', '#2679BC', '#216AA3', '#1B5B8A', '#164C71', '#51A7F1', '#71B7F4', '#91C7F7', '#B1D7FA'],
         'mint': ['#06B8A2', '#05A692', '#049482', '#038272', '#027062', '#015E52', '#26C8B2', '#46D8C2', '#66E8D2', '#86F8E2'],
         'orchid': ['#806FEA', '#7363D1', '#6657B8', '#594B9F', '#4C3F86', '#3F336D', '#9485ED', '#A89BF0', '#BCB1F3', '#D0C7F6'],
+        'Kenvue': ['#01504a', '#01665a', '#017a6b', '#018f7c', '#01a38d', '#35b5a0', '#67c7b3', '#98d9c6', '#c9ebe0', '#e0f5f1'],
         'custom': customColors
     };
 
@@ -2695,6 +2696,7 @@ const ExcelDataTransformer = () => {
                                             <option value="lake">Lake</option>
                                             <option value="mint">Mint</option>
                                             <option value="orchid">Orchid</option>
+                                            <option value="Kenvue">Kenvue</option>
                                             <option value="custom">Custom Colors</option>
                                         </select>
                                     </div>
