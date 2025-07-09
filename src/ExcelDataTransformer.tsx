@@ -2481,7 +2481,7 @@ const ExcelDataTransformer = () => {
                             Full Color Data
                         </h1>
                         <p className="text-sm text-white">
-                            Transform and analyze your Gemius marketing data with configurable columns. <i> For better outcomes. </i>
+                            Transform and analyze your Gemius marketing data. <i> For better outcomes. </i>
                         </p>
                     </div>
 
