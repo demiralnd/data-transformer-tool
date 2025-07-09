@@ -2478,10 +2478,10 @@ const ExcelDataTransformer = () => {
                 <div className="flex justify-between items-center mb-2 bg-red-500 p-4 rounded-lg shadow-sm border">
                     <div>
                         <h1 className="text-2xl font-bold text-white">
-                            Excel Data Transformer
+                            Full Color Data
                         </h1>
                         <p className="text-sm text-white">
-                            Transform and analyze your Gemius marketing data with configurable columns
+                            Transform and analyze your Gemius marketing data with configurable columns. <i> For better outcomes </i>
                         </p>
                     </div>
 
