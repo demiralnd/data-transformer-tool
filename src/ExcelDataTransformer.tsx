@@ -2475,7 +2475,7 @@ const ExcelDataTransformer = () => {
             </div>
 
             <div className="w-3/4 p-6 overflow-auto">
-                <div className="flex justify-between items-center mb-2 bg-red-500 p-4 rounded-lg shadow-sm border">
+                <div className="flex justify-between items-center mb-2 bg-gradient-to-r from-[#FF3534] to-[#F585DA] p-4 rounded-lg shadow-sm border">
                     <div>
                         <h1 className="text-2xl font-bold text-white">
                             Full Color Data
